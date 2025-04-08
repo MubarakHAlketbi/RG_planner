@@ -6,8 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const DEFAULT_TIER = 1; // F Tier
     const DEFAULT_LEVEL = 1;
-    const DEFAULT_SECONDARY_POSITIVE_COUNT = 2; // Default if main mod doesn't specify
-    const DEFAULT_SECONDARY_NEGATIVE_COUNT = 1; // Default if main mod doesn't specify
+    // FIX #1: Define defaults based on C# EquipmentModifierSO_Main.cs
+    const DEFAULT_SECONDARY_POSITIVE_COUNT = 2;
+    const DEFAULT_SECONDARY_NEGATIVE_COUNT = 1;
 
     // --- Initialization ---
     function initPlanner() {
@@ -87,10 +88,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const positiveGroup = document.createElement('div');
         positiveGroup.classList.add('modifier-group', 'secondary-modifiers-container', 'positive-secondary-container');
         const positiveLabel = document.createElement('label');
-        positiveLabel.textContent = `Secondary Positive`; // Label updated dynamically
+        // FIX #1: Label will be updated dynamically in updateSlotCalculations
+        positiveLabel.textContent = `Secondary Positive`;
         positiveGroup.appendChild(positiveLabel);
         // Create a reasonable max number of slots, they will be hidden/shown
-        const maxPositiveSlots = 3;
+        const maxPositiveSlots = 3; // Keep a reasonable max for creation
         for (let i = 0; i < maxPositiveSlots; i++) {
             positiveGroup.appendChild(createModifierGroup(slot, 'secondary', 'positive', i));
         }
@@ -100,10 +102,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const negativeGroup = document.createElement('div');
         negativeGroup.classList.add('modifier-group', 'secondary-modifiers-container', 'negative-secondary-container');
         const negativeLabel = document.createElement('label');
-        negativeLabel.textContent = `Secondary Negative`; // Label updated dynamically
+         // FIX #1: Label will be updated dynamically in updateSlotCalculations
+        negativeLabel.textContent = `Secondary Negative`;
         negativeGroup.appendChild(negativeLabel);
         // Create a reasonable max number of slots
-        const maxNegativeSlots = 2;
+        const maxNegativeSlots = 2; // Keep a reasonable max for creation
         for (let i = 0; i < maxNegativeSlots; i++) {
             negativeGroup.appendChild(createModifierGroup(slot, 'secondary', 'negative', i));
         }
@@ -144,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Modifier effect display area
         const effectDisplay = document.createElement('div');
         effectDisplay.classList.add('modifier-effect-display');
-        effectDisplay.innerHTML = ' '; // Placeholder
+        effectDisplay.innerHTML = ' '; // Placeholder
         groupDiv.appendChild(effectDisplay); // Display above select
 
         populateModifierOptions(select, slot, type, positivity);
@@ -163,6 +166,7 @@ document.addEventListener('DOMContentLoaded', () => {
         MODIFIERS.forEach(modifier => {
             let isAllowed = false;
             if (type === 'main') {
+                // FIX #8: Check allowedSlots includes the current slot.id (WeaponSlot now included)
                 isAllowed = modifier.type === 'main' && (!modifier.allowedSlots || modifier.allowedSlots.includes(slot.id));
             } else { // secondary
                 isAllowed = modifier.type === 'secondary' && modifier.positivity === positivity;
@@ -306,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Clear effect display
             const effectDisplay = select.closest('.modifier-selection-group')?.querySelector('.modifier-effect-display');
              if (effectDisplay) {
-                 effectDisplay.innerHTML = ' '; // Reset placeholder
+                 effectDisplay.innerHTML = ' '; // Reset placeholder
              }
         });
         allTiers.forEach(select => select.value = DEFAULT_TIER);
@@ -327,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const itemTier = parseInt(tierSelect.value, 10) || DEFAULT_TIER;
         const itemLevel = parseInt(levelInput.value, 10) || DEFAULT_LEVEL;
 
-        const selectedModifiers = [];
+        const selectedModifiersForLevelCalc = []; // FIX #2: Array to hold all selected mods for level calc
         const mainSelect = slotElement.querySelector('select.main-modifier-select');
         const secondaryPositiveSelects = slotElement.querySelectorAll('.positive-secondary-container .secondary-modifier-select');
         const secondaryNegativeSelects = slotElement.querySelectorAll('.negative-secondary-container .secondary-modifier-select');
@@ -335,14 +339,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Process Main Modifier
         const mainModifierId = mainSelect.value;
         const mainModifier = mainModifierId ? getModifierById(mainModifierId) : null;
-        selectedModifiers.push(mainModifier);
+        if (mainModifier) {
+            selectedModifiersForLevelCalc.push(mainModifier); // Add main mod to list for level calc
+        }
         updateModifierDisplay(mainSelect, mainModifier, itemTier, itemLevel);
 
-        // Determine secondary counts based on main modifier
+        // FIX #1: Determine secondary counts based on main modifier, use defaults if none selected
         const positiveCount = mainModifier?.secondaryPositiveCount ?? DEFAULT_SECONDARY_POSITIVE_COUNT;
         const negativeCount = mainModifier?.secondaryNegativeCount ?? DEFAULT_SECONDARY_NEGATIVE_COUNT;
 
-        // Update labels for secondary containers
+        // FIX #1: Update labels for secondary containers dynamically
         const positiveContainerLabel = slotElement.querySelector('.positive-secondary-container > label');
         if (positiveContainerLabel) positiveContainerLabel.textContent = `Secondary Positive (${positiveCount} max)`;
         const negativeContainerLabel = slotElement.querySelector('.negative-secondary-container > label');
@@ -352,11 +358,14 @@ document.addEventListener('DOMContentLoaded', () => {
         // Process and Show/Hide Positive Secondaries
         secondaryPositiveSelects.forEach((select, index) => {
             const groupDiv = select.closest('.modifier-selection-group');
+            // FIX #1: Show/hide based on count derived from main mod
             if (index < positiveCount) {
                 groupDiv.style.display = ''; // Show slot
                 const modifierId = select.value;
                 const modifier = modifierId ? getModifierById(modifierId) : null;
-                selectedModifiers.push(modifier);
+                if (modifier) {
+                     selectedModifiersForLevelCalc.push(modifier); // FIX #2: Add selected secondary to list
+                }
                 updateModifierDisplay(select, modifier, itemTier, itemLevel);
             } else {
                 groupDiv.style.display = 'none'; // Hide slot
@@ -364,18 +373,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     select.value = '';
                     updateModifierDisplay(select, null, itemTier, itemLevel); // Update display to clear it
                 }
-                selectedModifiers.push(null); // Add null placeholder for calculation
+                // Do not add null to selectedModifiersForLevelCalc
             }
         });
 
         // Process and Show/Hide Negative Secondaries
         secondaryNegativeSelects.forEach((select, index) => {
              const groupDiv = select.closest('.modifier-selection-group');
+             // FIX #1: Show/hide based on count derived from main mod
             if (index < negativeCount) {
                 groupDiv.style.display = ''; // Show slot
                 const modifierId = select.value;
                 const modifier = modifierId ? getModifierById(modifierId) : null;
-                selectedModifiers.push(modifier);
+                 if (modifier) {
+                     selectedModifiersForLevelCalc.push(modifier); // FIX #2: Add selected secondary to list
+                 }
                 updateModifierDisplay(select, modifier, itemTier, itemLevel);
             } else {
                 groupDiv.style.display = 'none'; // Hide slot
@@ -383,13 +395,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     select.value = '';
                     updateModifierDisplay(select, null, itemTier, itemLevel); // Update display to clear it
                 }
-                selectedModifiers.push(null); // Add null placeholder
+                 // Do not add null to selectedModifiersForLevelCalc
             }
         });
 
-        // Calculate and display Required Soul Level using only the *actually selected* modifiers
-        const finalSelectedModifiers = selectedModifiers.filter(mod => mod !== null);
-        const requiredLevel = calculateRequiredLevel(finalSelectedModifiers, itemTier, itemLevel);
+        // FIX #2: Calculate and display Required Soul Level using the collected list of selected modifiers
+        const requiredLevel = calculateRequiredLevel(selectedModifiersForLevelCalc, itemTier, itemLevel);
         const reqLevelValueSpan = slotElement.querySelector('.req-level-value');
         if (reqLevelValueSpan) {
             reqLevelValueSpan.textContent = requiredLevel;
@@ -404,7 +415,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const effectDisplay = groupDiv?.querySelector('.modifier-effect-display');
 
         if (effectDisplay) {
-            effectDisplay.innerHTML = modifier ? getModifierEffectText(modifier, itemTier, itemLevel) : ' ';
+            effectDisplay.innerHTML = modifier ? getModifierEffectText(modifier, itemTier, itemLevel) : ' ';
         }
 
         // Clear previous dynamic styles/classes
@@ -433,7 +444,8 @@ document.addEventListener('DOMContentLoaded', () => {
              }
              // Add estimated required level contribution to tooltip
              if (modifier.requiredLevelModifier !== undefined) {
-                 titleText += `\nEst. Base Lvl Mod: ${modifier.requiredLevelModifier}`;
+                 // FIX #3: Display the positive cost value here
+                 titleText += `\nEst. Base Lvl Cost: ${modifier.requiredLevelModifier}`;
              }
              selectElement.title = titleText;
         }
