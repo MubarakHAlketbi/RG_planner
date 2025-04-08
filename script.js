@@ -6,6 +6,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const DEFAULT_TIER = 1; // F Tier
     const DEFAULT_LEVEL = 1;
+    const DEFAULT_SECONDARY_POSITIVE_COUNT = 2; // Default if main mod doesn't specify
+    const DEFAULT_SECONDARY_NEGATIVE_COUNT = 1; // Default if main mod doesn't specify
 
     // --- Initialization ---
     function initPlanner() {
@@ -13,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
         SLOTS.forEach(slot => {
             const slotElement = createSlotElement(slot);
             plannerContainer.appendChild(slotElement);
-            updateSlotCalculations(slotElement); // Initial calculation
+            updateSlotCalculations(slotElement); // Initial calculation and secondary slot visibility
         });
         filterInput.addEventListener('input', handleFilterChange);
         clearAllButton.addEventListener('click', handleClearAll);
@@ -44,11 +46,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const tierSelect = document.createElement('select');
         tierSelect.id = `${slot.id}-tier`;
         tierSelect.classList.add('item-tier-select');
+        // Use the extended TIER_MAP from data.js
         for (const tierVal in TIER_MAP) {
             const option = document.createElement('option');
             option.value = TIER_MAP[tierVal].value;
             option.textContent = TIER_MAP[tierVal].name;
-            if (parseInt(tierVal) === DEFAULT_TIER) option.selected = true;
+            if (parseInt(TIER_MAP[tierVal].value) === DEFAULT_TIER) option.selected = true; // Compare value, not key
             tierSelect.appendChild(option);
         }
         tierSelect.addEventListener('change', handleTierLevelChange);
@@ -80,24 +83,28 @@ document.addEventListener('DOMContentLoaded', () => {
         // Main Modifier
         slotDiv.appendChild(createModifierGroup(slot, 'main'));
 
-        // Secondary Positive Modifiers
+        // Secondary Positive Modifiers - Create fixed number initially (e.g., max expected)
         const positiveGroup = document.createElement('div');
-        positiveGroup.classList.add('modifier-group', 'secondary-modifiers-container');
+        positiveGroup.classList.add('modifier-group', 'secondary-modifiers-container', 'positive-secondary-container');
         const positiveLabel = document.createElement('label');
-        positiveLabel.textContent = `Secondary Positive (${slot.secondaryPositiveCount} max)`;
+        positiveLabel.textContent = `Secondary Positive`; // Label updated dynamically
         positiveGroup.appendChild(positiveLabel);
-        for (let i = 0; i < slot.secondaryPositiveCount; i++) {
+        // Create a reasonable max number of slots, they will be hidden/shown
+        const maxPositiveSlots = 3;
+        for (let i = 0; i < maxPositiveSlots; i++) {
             positiveGroup.appendChild(createModifierGroup(slot, 'secondary', 'positive', i));
         }
         slotDiv.appendChild(positiveGroup);
 
-        // Secondary Negative Modifiers
+        // Secondary Negative Modifiers - Create fixed number initially
         const negativeGroup = document.createElement('div');
-        negativeGroup.classList.add('modifier-group', 'secondary-modifiers-container');
+        negativeGroup.classList.add('modifier-group', 'secondary-modifiers-container', 'negative-secondary-container');
         const negativeLabel = document.createElement('label');
-        negativeLabel.textContent = `Secondary Negative (${slot.secondaryNegativeCount} max)`;
+        negativeLabel.textContent = `Secondary Negative`; // Label updated dynamically
         negativeGroup.appendChild(negativeLabel);
-        for (let i = 0; i < slot.secondaryNegativeCount; i++) {
+        // Create a reasonable max number of slots
+        const maxNegativeSlots = 2;
+        for (let i = 0; i < maxNegativeSlots; i++) {
             negativeGroup.appendChild(createModifierGroup(slot, 'secondary', 'negative', i));
         }
         slotDiv.appendChild(negativeGroup);
@@ -107,9 +114,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function createModifierGroup(slot, type, positivity = null, index = 0) {
         const groupDiv = document.createElement('div');
-        groupDiv.classList.add('modifier-group');
+        groupDiv.classList.add('modifier-selection-group'); // Renamed class for clarity
         if (type === 'secondary') {
             groupDiv.classList.add('secondary-modifier-slot');
+            groupDiv.dataset.index = index; // Store index for showing/hiding
+            groupDiv.style.display = 'none'; // Hide secondary slots initially
         }
 
         const label = document.createElement('label');
@@ -119,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
              label.textContent = 'Main Modifier:';
              groupDiv.appendChild(label);
         }
-        // Secondary labels are handled by the container
+        // Secondary labels are handled by the container label now
 
         const select = document.createElement('select');
         select.id = selectId;
@@ -129,18 +138,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const defaultOption = document.createElement('option');
         defaultOption.value = '';
-        defaultOption.textContent = `--- Select ${type === 'main' ? 'Main' : 'Secondary'} ---`;
+        defaultOption.textContent = `--- Select ${type === 'main' ? 'Main' : (positivity === 'positive' ? 'Positive' : 'Negative')} ---`;
         select.appendChild(defaultOption);
 
         // Modifier effect display area
         const effectDisplay = document.createElement('div');
         effectDisplay.classList.add('modifier-effect-display');
         effectDisplay.innerHTML = ' '; // Placeholder
-        groupDiv.appendChild(effectDisplay);
+        groupDiv.appendChild(effectDisplay); // Display above select
 
         populateModifierOptions(select, slot, type, positivity);
         select.addEventListener('change', handleSelectChange);
-        groupDiv.appendChild(select);
+        groupDiv.appendChild(select); // Select below display
 
         return groupDiv;
     }
@@ -178,6 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let currentRarity = null;
 
         addedModifiers.forEach(modifier => {
+            // Create optgroup if rarity changes
             if (modifier.rarity !== currentRarity) {
                 currentRarity = modifier.rarity;
                 currentOptgroup = document.createElement('optgroup');
@@ -188,6 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const option = document.createElement('option');
             option.value = modifier.id;
 
+            // Get base display text using default tier/level for the option text
             const baseDisplayText = getModifierEffectText(modifier, DEFAULT_TIER, DEFAULT_LEVEL);
             const uniqueIndicator = modifier.rarity === 'Unique' ? '⭐ ' : '';
             option.textContent = uniqueIndicator + baseDisplayText;
@@ -198,6 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
             option.dataset.rarity = modifier.rarity;
             option.dataset.positivity = modifier.positivity;
             option.dataset.name = modifier.name.toLowerCase();
+            // Store the base text for filtering, without tier/level scaling applied yet
             option.dataset.effectText = baseDisplayText.toLowerCase();
 
             // Apply filtering
@@ -205,14 +217,12 @@ document.addEventListener('DOMContentLoaded', () => {
                                   option.dataset.name.includes(currentFilter) ||
                                   option.dataset.effectText.includes(currentFilter);
 
-            if (!matchesFilter) {
-                option.classList.add('hidden-option');
-            }
+            option.classList.toggle('hidden-option', !matchesFilter);
 
             if (currentOptgroup) {
                  currentOptgroup.appendChild(option);
             } else {
-                 selectElement.appendChild(option); // Fallback
+                 selectElement.appendChild(option); // Fallback if no optgroup (shouldn't happen with sort)
             }
         });
     }
@@ -221,18 +231,19 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleSelectChange(event) {
         const select = event.target;
         const slotElement = select.closest('.equipment-slot');
-        updateSlotCalculations(slotElement);
+        updateSlotCalculations(slotElement); // Recalculate everything, including secondary visibility
     }
 
     function handleTierLevelChange(event) {
         const input = event.target;
         const slotElement = input.closest('.equipment-slot');
 
+        // Validate level input
         if (input.classList.contains('item-level-input')) {
              let value = parseInt(input.value, 10);
              if (isNaN(value) || value < 1) value = 1;
              if (value > MAX_LEVEL) value = MAX_LEVEL;
-             input.value = value;
+             input.value = value; // Correct the input value if needed
         }
 
         updateSlotCalculations(slotElement);
@@ -243,9 +254,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const allSelects = document.querySelectorAll('select');
 
         allSelects.forEach(select => {
-            let hasVisibleOptions = false;
+            let hasVisibleOptionsInSelect = false;
             const optgroups = select.querySelectorAll('optgroup');
-            const options = select.querySelectorAll('option:not([value=""])');
+
+            // Handle options directly under select (like the default "-- Select --")
+            select.querySelectorAll(':scope > option:not([value=""])').forEach(option => {
+                 const name = option.dataset.name || '';
+                 const effectText = option.dataset.effectText || '';
+                 const matches = filterValue === '' || name.includes(filterValue) || effectText.includes(filterValue);
+                 option.classList.toggle('hidden-option', !matches);
+                 if(matches) hasVisibleOptionsInSelect = true;
+            });
+
 
             optgroups.forEach(optgroup => {
                 let groupHasVisibleOptions = false;
@@ -258,13 +278,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     option.classList.toggle('hidden-option', !matches);
                     if (matches) {
                         groupHasVisibleOptions = true;
-                        hasVisibleOptions = true;
+                        hasVisibleOptionsInSelect = true; // Mark select as having visible options
                     }
                 });
+                 // Hide optgroup if it has no visible options
                  optgroup.style.display = groupHasVisibleOptions ? '' : 'none';
             });
+
+             // Optional: Hide the entire select if no options match? Might be confusing.
+             // select.style.display = hasVisibleOptionsInSelect ? '' : 'none';
         });
     }
+
 
      function handleClearAll() {
         const allSelects = document.querySelectorAll('select.main-modifier-select, select.secondary-modifier-select');
@@ -272,23 +297,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const allLevels = document.querySelectorAll('input.item-level-input');
 
         allSelects.forEach(select => {
-            select.value = '';
+            select.value = ''; // Reset selection
+            // Clear dynamic classes and styles
             select.className = select.className.replace(/selected-rarity-\w+/g, '').trim();
             select.className = select.className.replace(/selected-positivity-\w+/g, '').trim();
             select.style.borderColor = '';
             select.title = '';
-            const effectDisplay = select.previousElementSibling;
-             if (effectDisplay && effectDisplay.classList.contains('modifier-effect-display')) {
-                 effectDisplay.innerHTML = ' ';
+            // Clear effect display
+            const effectDisplay = select.closest('.modifier-selection-group')?.querySelector('.modifier-effect-display');
+             if (effectDisplay) {
+                 effectDisplay.innerHTML = ' '; // Reset placeholder
              }
         });
         allTiers.forEach(select => select.value = DEFAULT_TIER);
         allLevels.forEach(input => input.value = DEFAULT_LEVEL);
 
+        // Update calculations and visibility for all slots
         document.querySelectorAll('.equipment-slot').forEach(updateSlotCalculations);
 
-        filterInput.value = '';
-        handleFilterChange();
+        filterInput.value = ''; // Clear filter input
+        handleFilterChange(); // Re-apply filter (shows all options)
+        updateAllActiveStates(); // Update active/inactive based on cleared levels
     }
 
     // --- Calculation & Update Logic ---
@@ -299,47 +328,68 @@ document.addEventListener('DOMContentLoaded', () => {
         const itemLevel = parseInt(levelInput.value, 10) || DEFAULT_LEVEL;
 
         const selectedModifiers = [];
-        const selects = slotElement.querySelectorAll('select.main-modifier-select, select.secondary-modifier-select');
+        const mainSelect = slotElement.querySelector('select.main-modifier-select');
+        const secondaryPositiveSelects = slotElement.querySelectorAll('.positive-secondary-container .secondary-modifier-select');
+        const secondaryNegativeSelects = slotElement.querySelectorAll('.negative-secondary-container .secondary-modifier-select');
 
-        selects.forEach(select => {
-            const selectedOption = select.options[select.selectedIndex];
-            const modifierId = selectedOption ? selectedOption.value : '';
-            const modifier = modifierId ? getModifierById(modifierId) : null;
-            selectedModifiers.push(modifier);
+        // Process Main Modifier
+        const mainModifierId = mainSelect.value;
+        const mainModifier = mainModifierId ? getModifierById(mainModifierId) : null;
+        selectedModifiers.push(mainModifier);
+        updateModifierDisplay(mainSelect, mainModifier, itemTier, itemLevel);
 
-            const effectDisplay = select.previousElementSibling;
-            if (effectDisplay && effectDisplay.classList.contains('modifier-effect-display')) {
-                effectDisplay.innerHTML = modifier ? getModifierEffectText(modifier, itemTier, itemLevel) : ' ';
-            }
+        // Determine secondary counts based on main modifier
+        const positiveCount = mainModifier?.secondaryPositiveCount ?? DEFAULT_SECONDARY_POSITIVE_COUNT;
+        const negativeCount = mainModifier?.secondaryNegativeCount ?? DEFAULT_SECONDARY_NEGATIVE_COUNT;
 
-            select.className = select.className.replace(/selected-rarity-\w+/g, '').trim();
-            select.className = select.className.replace(/selected-positivity-\w+/g, '').trim();
-            select.style.borderColor = '';
-            select.title = '';
+        // Update labels for secondary containers
+        const positiveContainerLabel = slotElement.querySelector('.positive-secondary-container > label');
+        if (positiveContainerLabel) positiveContainerLabel.textContent = `Secondary Positive (${positiveCount} max)`;
+        const negativeContainerLabel = slotElement.querySelector('.negative-secondary-container > label');
+        if (negativeContainerLabel) negativeContainerLabel.textContent = `Secondary Negative (${negativeCount} max)`;
 
-            if (modifier) {
-                const rarity = modifier.rarity;
-                const positivity = modifier.positivity;
-                if (rarity) {
-                    select.classList.add(`selected-rarity-${rarity.toLowerCase()}`);
-                    select.style.borderColor = getRarityColor(rarity);
+
+        // Process and Show/Hide Positive Secondaries
+        secondaryPositiveSelects.forEach((select, index) => {
+            const groupDiv = select.closest('.modifier-selection-group');
+            if (index < positiveCount) {
+                groupDiv.style.display = ''; // Show slot
+                const modifierId = select.value;
+                const modifier = modifierId ? getModifierById(modifierId) : null;
+                selectedModifiers.push(modifier);
+                updateModifierDisplay(select, modifier, itemTier, itemLevel);
+            } else {
+                groupDiv.style.display = 'none'; // Hide slot
+                if (select.value) { // If a hidden slot had a selection, clear it
+                    select.value = '';
+                    updateModifierDisplay(select, null, itemTier, itemLevel); // Update display to clear it
                 }
-                 if (positivity) {
-                     select.classList.add(`selected-positivity-${positivity.toLowerCase()}`);
-                }
-                 let titleText = `Rarity: ${rarity}`;
-                 if (positivity) {
-                     titleText += ` | Type: ${positivity.charAt(0).toUpperCase() + positivity.slice(1)}`;
-                 }
-                 if(modifier.description) {
-                      titleText += `\nEffect Desc: ${modifier.description}`;
-                 }
-                 select.title = titleText;
+                selectedModifiers.push(null); // Add null placeholder for calculation
             }
         });
 
-        // Calculate and display Required Soul Level
-        const requiredLevel = calculateRequiredLevel(selectedModifiers, itemTier, itemLevel);
+        // Process and Show/Hide Negative Secondaries
+        secondaryNegativeSelects.forEach((select, index) => {
+             const groupDiv = select.closest('.modifier-selection-group');
+            if (index < negativeCount) {
+                groupDiv.style.display = ''; // Show slot
+                const modifierId = select.value;
+                const modifier = modifierId ? getModifierById(modifierId) : null;
+                selectedModifiers.push(modifier);
+                updateModifierDisplay(select, modifier, itemTier, itemLevel);
+            } else {
+                groupDiv.style.display = 'none'; // Hide slot
+                 if (select.value) { // If a hidden slot had a selection, clear it
+                    select.value = '';
+                    updateModifierDisplay(select, null, itemTier, itemLevel); // Update display to clear it
+                }
+                selectedModifiers.push(null); // Add null placeholder
+            }
+        });
+
+        // Calculate and display Required Soul Level using only the *actually selected* modifiers
+        const finalSelectedModifiers = selectedModifiers.filter(mod => mod !== null);
+        const requiredLevel = calculateRequiredLevel(finalSelectedModifiers, itemTier, itemLevel);
         const reqLevelValueSpan = slotElement.querySelector('.req-level-value');
         if (reqLevelValueSpan) {
             reqLevelValueSpan.textContent = requiredLevel;
@@ -347,6 +397,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updateSlotActiveState(slotElement, requiredLevel);
     }
+
+    // Helper to update display for a single modifier select element
+    function updateModifierDisplay(selectElement, modifier, itemTier, itemLevel) {
+        const groupDiv = selectElement.closest('.modifier-selection-group');
+        const effectDisplay = groupDiv?.querySelector('.modifier-effect-display');
+
+        if (effectDisplay) {
+            effectDisplay.innerHTML = modifier ? getModifierEffectText(modifier, itemTier, itemLevel) : ' ';
+        }
+
+        // Clear previous dynamic styles/classes
+        selectElement.className = selectElement.className.replace(/selected-rarity-\w+/g, '').trim();
+        selectElement.className = selectElement.className.replace(/selected-positivity-\w+/g, '').trim();
+        selectElement.style.borderColor = '';
+        selectElement.title = ''; // Clear old title
+
+        if (modifier) {
+            const rarity = modifier.rarity;
+            const positivity = modifier.positivity;
+            if (rarity) {
+                selectElement.classList.add(`selected-rarity-${rarity.toLowerCase()}`);
+                selectElement.style.borderColor = getRarityColor(rarity); // Apply border color
+            }
+             if (positivity) {
+                 selectElement.classList.add(`selected-positivity-${positivity.toLowerCase()}`);
+            }
+             // Build tooltip
+             let titleText = `Rarity: ${rarity}`;
+             if (positivity) {
+                 titleText += ` | Type: ${positivity.charAt(0).toUpperCase() + positivity.slice(1)}`;
+             }
+             if(modifier.description) {
+                  titleText += `\nDesc: ${modifier.description}`;
+             }
+             // Add estimated required level contribution to tooltip
+             if (modifier.requiredLevelModifier !== undefined) {
+                 titleText += `\nEst. Base Lvl Mod: ${modifier.requiredLevelModifier}`;
+             }
+             selectElement.title = titleText;
+        }
+    }
+
 
     function updateSlotActiveState(slotElement, requiredLevel) {
         const playerLevel = parseInt(playerSoulLevelInput.value, 10) || 1;

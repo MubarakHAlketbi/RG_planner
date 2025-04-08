@@ -3,16 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rogue Genesia Equipment Planner</title>
+    <title>Rogue Genesia Equipment Planner v0.2</title>
     <link rel="stylesheet" href="style.css">
 	<script defer data-domain="mubarakhalketbi.github.io" src="https://plausible.mubarakhalketbi.com/js/script.js"></script>
 </head>
 <body>
     <div id="app">
         <header>
-            <h1>Rogue Genesia Equipment Planner</h1>
+            <h1>Rogue Genesia Equipment Planner v0.2</h1>
             <p class="disclaimer">
-                Based on decompiled code analysis. Modifier availability per slot is inferred and may have inaccuracies due to missing game data files. Secondary modifier lists show all possibilities; actual availability depends on the chosen Main modifier in-game. Required Soul Level is an estimate based on modifier rarity.
+                Based on decompiled code analysis (Game Version ~0.9.x). Modifier availability per slot is inferred and may have inaccuracies due to missing game data files.
+                Secondary modifier lists show all possibilities; actual availability and the number of secondary slots depend on the chosen Main modifier in-game (this planner uses default counts of 2 positive, 1 negative unless the main modifier dictates otherwise).
+                <br><strong>Required Soul Level is an ESTIMATE based on modifier rarity and tier/level scaling, as the exact values are defined in game data assets not available here.</strong> Custom modifier rarities/levels are also estimations. Calculations aim to replicate game logic but may have discrepancies.
             </p>
              <div class="controls">
                 <label for="player-soul-level">Your Soul Level:</label>
@@ -28,7 +30,7 @@
         </main>
 
         <footer>
-            <p>Planner created based on provided C# source code. Improvements added: Tier/Level inputs, Selected Rarity Indicator, Unique Modifier Indicator, Required Soul Level calculation.</p>
+            <p>Planner created based on provided C# source code. Improvements added: Tier/Level inputs, Selected Rarity Indicator, Unique Modifier Indicator, Required Soul Level calculation (estimated), God Stone calculations updated, Tier map extended.</p>
         </footer>
     </div>
 
