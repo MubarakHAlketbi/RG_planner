@@ -1,0 +1,319 @@
+:root {
+    --bg-color: #1a1a2e;
+    --card-bg: #16213e;
+    --text-color: #e0e0e0;
+    --primary-color: #0f3460;
+    --secondary-color: #533483;
+    --accent-color: #e94560;
+    --border-color: #4a4a6a;
+    --input-bg: #1f2a47; /* Slightly different for inputs */
+    --inactive-opacity: 0.6;
+
+    /* Rarity Colors (approximated from EquipmentUtils) */
+    --rarity-common: #c8c8ff; /* Lightened */
+    --rarity-uncommon: #70c070; /* Lightened */
+    --rarity-rare: #66b3d9; /* Lightened */
+    --rarity-epic: #b399ff; /* Lightened */
+    --rarity-legendary: #ffd966; /* Lightened */
+    --rarity-mythical: #ffb370; /* Lightened */
+    --rarity-ascended: #ff7070; /* Lightened */
+    --rarity-unique: #80fff2; /* Lightened */
+
+    /* Positivity Colors */
+    --positive-color: #70c070; /* Green */
+    --negative-color: #ff7070; /* Red */
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    line-height: 1.6;
+    padding: 20px;
+}
+
+#app {
+    max-width: 1400px;
+    margin: 0 auto;
+    background-color: var(--primary-color);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 20px;
+}
+
+header h1 {
+    color: var(--accent-color);
+    margin-bottom: 10px;
+}
+
+.disclaimer {
+    font-size: 0.9em;
+    color: #aaa;
+    max-width: 800px;
+    margin: 10px auto;
+}
+
+.controls {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.controls label {
+    font-weight: bold;
+}
+
+.controls input[type="text"],
+.controls input[type="number"] {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border-radius: 4px;
+    min-width: 100px; /* Adjusted min-width */
+}
+.controls input[type="number"] {
+    width: 80px; /* Specific width for number inputs */
+}
+
+.controls button {
+    padding: 8px 15px;
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.controls button:hover {
+    background-color: #c7304a;
+}
+
+
+#planner-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); /* Slightly wider min */
+    gap: 25px;
+}
+
+.equipment-slot {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    transition: opacity 0.3s ease; /* For inactive state */
+}
+
+/* Style for inactive slots */
+.equipment-slot.inactive-slot {
+    opacity: var(--inactive-opacity);
+    /* border-color: #666; Maybe change border too */
+}
+
+
+.equipment-slot h3 {
+    text-align: center;
+    color: var(--accent-color);
+    margin-bottom: 10px;
+    border-bottom: 1px dashed var(--border-color);
+    padding-bottom: 10px;
+}
+
+/* Tier and Level Input Styling */
+.tier-level-inputs {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    justify-content: center; /* Center the inputs */
+}
+
+.tier-level-inputs label {
+    font-weight: bold;
+    font-size: 0.9em;
+}
+
+.tier-level-inputs select,
+.tier-level-inputs input[type="number"] {
+    padding: 5px 8px;
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+.tier-level-inputs input[type="number"] {
+    width: 60px; /* Fixed width for level */
+}
+.tier-level-inputs select {
+     min-width: 50px; /* Width for tier */
+}
+
+/* Required Level Display */
+.required-level-display {
+    text-align: center;
+    font-size: 0.95em;
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: #ccc; /* Slightly dimmer color */
+}
+.req-level-value {
+    color: var(--accent-color); /* Highlight the value */
+    font-size: 1.1em;
+}
+
+.modifier-group {
+    margin-bottom: 5px; /* Reduced margin */
+}
+
+.modifier-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+    font-size: 0.95em;
+}
+/* Specific label styling for secondary groups */
+.secondary-modifiers-container > label {
+     font-size: 1em;
+     color: #bbb;
+     margin-bottom: 8px;
+     padding-bottom: 5px;
+     border-bottom: 1px solid var(--border-color);
+}
+
+
+.modifier-group select,
+.modifier-group .selected-modifier {
+    width: 100%;
+    padding: 8px 10px;
+    background-color: var(--input-bg); /* Consistent input background */
+    color: var(--text-color);
+    border: 2px solid var(--border-color); /* Default border */
+    border-radius: 4px;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: border-color 0.3s ease; /* Smooth border transition */
+}
+
+.modifier-group select:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+/* Modifier Effect Display */
+.modifier-effect-display {
+    font-size: 0.85em;
+    color: #b0b0d0; /* Lighter text for effect */
+    margin-top: 5px; /* Space above select */
+    padding: 5px;
+    background-color: rgba(0,0,0,0.1); /* Subtle background */
+    border-radius: 3px;
+    min-height: 2.5em; /* Ensure space even when empty */
+    line-height: 1.4; /* Adjust line spacing */
+}
+.modifier-effect-display br { /* Ensure <br> works for multi-line effects */
+    display: block;
+    content: "";
+    margin-top: 0.3em;
+}
+
+/* Style options based on rarity */
+.modifier-option.rarity-common { color: var(--rarity-common); }
+.modifier-option.rarity-uncommon { color: var(--rarity-uncommon); }
+.modifier-option.rarity-rare { color: var(--rarity-rare); }
+.modifier-option.rarity-epic { color: var(--rarity-epic); }
+.modifier-option.rarity-legendary { color: var(--rarity-legendary); }
+.modifier-option.rarity-mythical { color: var(--rarity-mythical); }
+.modifier-option.rarity-ascended { color: var(--rarity-ascended); }
+.modifier-option.rarity-unique { color: var(--rarity-unique); font-weight: bold; }
+
+/* Style selected value based on rarity (Using border - Improvement 1) */
+.main-modifier-select.selected-rarity-common,
+.secondary-modifier-select.selected-rarity-common { border-color: var(--rarity-common) !important; } /* Use important to override default */
+.main-modifier-select.selected-rarity-uncommon,
+.secondary-modifier-select.selected-rarity-uncommon { border-color: var(--rarity-uncommon) !important; }
+.main-modifier-select.selected-rarity-rare,
+.secondary-modifier-select.selected-rarity-rare { border-color: var(--rarity-rare) !important; }
+.main-modifier-select.selected-rarity-epic,
+.secondary-modifier-select.selected-rarity-epic { border-color: var(--rarity-epic) !important; }
+.main-modifier-select.selected-rarity-legendary,
+.secondary-modifier-select.selected-rarity-legendary { border-color: var(--rarity-legendary) !important; }
+.main-modifier-select.selected-rarity-mythical,
+.secondary-modifier-select.selected-rarity-mythical { border-color: var(--rarity-mythical) !important; }
+.main-modifier-select.selected-rarity-ascended,
+.secondary-modifier-select.selected-rarity-ascended { border-color: var(--rarity-ascended) !important; }
+.main-modifier-select.selected-rarity-unique,
+.secondary-modifier-select.selected-rarity-unique { border-color: var(--rarity-unique) !important; font-weight: bold; }
+
+/* Optional: Style secondary based on positivity (subtle indicator) */
+.secondary-modifier-select.selected-positivity-positive {
+    /* Maybe a subtle background glow or icon? */
+}
+.secondary-modifier-select.selected-positivity-negative {
+     /* Maybe a subtle background glow or icon? */
+}
+
+
+.secondary-modifiers-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Spacing between secondary slots */
+    margin-top: 10px; /* Space above secondary section */
+}
+
+.secondary-modifier-slot {
+    display: flex;
+    flex-direction: column;
+}
+
+
+/* Tooltip Styles (Basic) */
+.modifier-option[title],
+select option[title],
+select[title] { /* Add title to select itself */
+    cursor: help;
+}
+
+/* Optgroup Styling */
+optgroup {
+    font-weight: bold;
+    font-style: italic;
+    color: var(--accent-color); /* Make rarity group labels stand out */
+    background-color: rgba(0,0,0, 0.2); /* Slightly darker background for group */
+    padding: 2px 5px;
+    margin-top: 5px;
+}
+/* Hide options that don't match filter */
+.hidden-option {
+    display: none !important;
+}
+
+footer {
+    text-align: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.85em;
+    color: #aaa;
+}

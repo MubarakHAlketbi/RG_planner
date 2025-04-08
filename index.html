@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rogue Genesia Equipment Planner</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Rogue Genesia Equipment Planner</h1>
+            <p class="disclaimer">
+                Based on decompiled code analysis. Modifier availability per slot is inferred and may have inaccuracies due to missing game data files. Secondary modifier lists show all possibilities; actual availability depends on the chosen Main modifier in-game. Required Soul Level is an estimate based on modifier rarity.
+            </p>
+             <div class="controls">
+                <label for="player-soul-level">Your Soul Level:</label>
+                <input type="number" id="player-soul-level" value="1" min="1" step="1">
+                <label for="modifier-filter">Filter Modifiers:</label>
+                <input type="text" id="modifier-filter" placeholder="Search by name or stat...">
+                <button id="clear-all-btn">Clear All Slots</button>
+            </div>
+        </header>
+
+        <main id="planner-container">
+            <!-- Slots will be generated here by JavaScript -->
+        </main>
+
+        <footer>
+            <p>Planner created based on provided C# source code. Improvements added: Tier/Level inputs, Selected Rarity Indicator, Unique Modifier Indicator, Required Soul Level calculation.</p>
+        </footer>
+    </div>
+
+    <!-- Data and Logic -->
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
