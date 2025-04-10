@@ -39,7 +39,7 @@ body {
 }
 
 #app {
-    max-width: 1400px;
+    max-width: 1600px; /* Increased max-width for more slots */
     margin: 0 auto;
     background-color: var(--primary-color);
     padding: 20px;
@@ -64,12 +64,7 @@ header h1 {
     color: #aaa;
     max-width: 800px;
     margin: 10px auto;
-    line-height: 1.4; /* Improve readability */
 }
-.disclaimer strong {
-    color: var(--rarity-legendary); /* Highlight important note */
-}
-
 
 .controls {
     margin-top: 20px;
@@ -114,8 +109,9 @@ header h1 {
 
 #planner-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); /* Slightly wider min */
-    gap: 25px;
+    /* Adjusted grid for potentially more columns */
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Slightly narrower min for more columns */
+    gap: 20px; /* Slightly reduced gap */
 }
 
 .equipment-slot {
@@ -188,22 +184,17 @@ header h1 {
     font-size: 1.1em;
 }
 
-/* Container for modifier label, effect, and select */
-.modifier-selection-group {
-    display: flex;
-    flex-direction: column;
-    gap: 5px; /* Space between label, effect, select */
-    margin-bottom: 10px; /* Space below each modifier group */
+.modifier-group {
+    margin-bottom: 5px; /* Reduced margin */
 }
 
-.modifier-selection-group label {
+.modifier-group label {
     display: block;
     font-weight: bold;
+    margin-bottom: 5px;
     font-size: 0.95em;
-    margin-bottom: 0; /* Remove bottom margin as gap handles spacing */
 }
-
-/* Specific label styling for secondary groups container */
+/* Specific label styling for secondary groups */
 .secondary-modifiers-container > label {
      font-size: 1em;
      color: #bbb;
@@ -213,7 +204,8 @@ header h1 {
 }
 
 
-.modifier-selection-group select {
+.modifier-group select,
+.modifier-group .selected-modifier {
     width: 100%;
     padding: 8px 10px;
     background-color: var(--input-bg); /* Consistent input background */
@@ -225,7 +217,7 @@ header h1 {
     transition: border-color 0.3s ease; /* Smooth border transition */
 }
 
-.modifier-selection-group select:focus {
+.modifier-group select:focus {
     outline: none;
     border-color: var(--accent-color);
 }
@@ -234,13 +226,12 @@ header h1 {
 .modifier-effect-display {
     font-size: 0.85em;
     color: #b0b0d0; /* Lighter text for effect */
-    /* margin-top: 5px; Removed margin-top */
+    margin-top: 5px; /* Space above select */
     padding: 5px;
     background-color: rgba(0,0,0,0.1); /* Subtle background */
     border-radius: 3px;
     min-height: 2.5em; /* Ensure space even when empty */
     line-height: 1.4; /* Adjust line spacing */
-    word-wrap: break-word; /* Prevent long lines from overflowing */
 }
 .modifier-effect-display br { /* Ensure <br> works for multi-line effects */
     display: block;
@@ -292,9 +283,9 @@ header h1 {
     margin-top: 10px; /* Space above secondary section */
 }
 
-/* This is now the container for effect + select */
 .secondary-modifier-slot {
-   /* No specific styles needed here now, handled by .modifier-selection-group */
+    display: flex;
+    flex-direction: column;
 }
 
 

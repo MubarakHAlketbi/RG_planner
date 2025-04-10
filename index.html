@@ -3,18 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rogue Genesia Equipment Planner v0.3</title> <!-- Version Bump -->
+    <title>Rogue Genesia Equipment Planner (v2 - Data Updated)</title>
     <link rel="stylesheet" href="style.css">
-	<script defer data-domain="mubarakhalketbi.github.io" src="https://plausible.mubarakhalketbi.com/js/script.js"></script>
 </head>
 <body>
     <div id="app">
         <header>
-            <h1>Rogue Genesia Equipment Planner v0.3</h1> <!-- Version Bump -->
+            <h1>Rogue Genesia Equipment Planner (v0.4)</h1>
             <p class="disclaimer">
-                Based on decompiled code analysis. Modifier availability per slot is inferred and may have inaccuracies due to missing game data files.
-                Secondary modifier lists show all possibilities; the number of available secondary slots (positive/negative) depends on the chosen Main modifier in-game (this planner uses default counts from C# unless the main modifier data specifies otherwise).
-                <br><strong>Required Soul Level is an ESTIMATE based on modifier rarity and tier/level scaling, as the exact base cost values are defined in game data assets not available here.</strong> Custom modifier rarities/levels are also estimations. Calculations aim to replicate game logic but may have discrepancies.
+                Data updated based on JSON export from decompiled code. Modifier availability per slot derived from item->slot relationships. Required Soul Level calculated based on modifier costs.
             </p>
              <div class="controls">
                 <label for="player-soul-level">Your Soul Level:</label>
@@ -27,10 +24,20 @@
 
         <main id="planner-container">
             <!-- Slots will be generated here by JavaScript -->
+            <!-- Example structure (will be repeated):
+            <div class="equipment-slot" data-slot-id="Head">
+                <h3>Head</h3>
+                <div class="tier-level-inputs">...</div>
+                <div class="required-level-display">...</div>
+                <div class="modifier-group"> Main Modifier ... </div>
+                <div class="modifier-group secondary-modifiers-container"> Positive ... </div>
+                <div class="modifier-group secondary-modifiers-container"> Negative ... </div>
+            </div>
+             -->
         </main>
 
         <footer>
-            <p>Planner created based on provided C# source code. Improvements added: Tier/Level inputs, Selected Rarity Indicator, Unique Modifier Indicator, Required Soul Level calculation (estimated), God Stone calculations updated, Tier map extended, Secondary Slot Counts, Stat Scaling, Weapon Slot.</p>
+            <p>Planner created based on provided C# source code and JSON data export. Required Soul Level calculation subtracts cost for negative modifiers.</p>
         </footer>
     </div>
 

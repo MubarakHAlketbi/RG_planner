@@ -6,9 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const DEFAULT_TIER = 1; // F Tier
     const DEFAULT_LEVEL = 1;
-    // FIX #1: Define defaults based on C# EquipmentModifierSO_Main.cs
-    const DEFAULT_SECONDARY_POSITIVE_COUNT = 2;
-    const DEFAULT_SECONDARY_NEGATIVE_COUNT = 1;
 
     // --- Initialization ---
     function initPlanner() {
@@ -16,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
         SLOTS.forEach(slot => {
             const slotElement = createSlotElement(slot);
             plannerContainer.appendChild(slotElement);
-            updateSlotCalculations(slotElement); // Initial calculation and secondary slot visibility
+            updateSlotCalculations(slotElement); // Initial calculation
         });
         filterInput.addEventListener('input', handleFilterChange);
         clearAllButton.addEventListener('click', handleClearAll);
@@ -47,12 +44,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const tierSelect = document.createElement('select');
         tierSelect.id = `${slot.id}-tier`;
         tierSelect.classList.add('item-tier-select');
-        // Use the extended TIER_MAP from data.js
         for (const tierVal in TIER_MAP) {
             const option = document.createElement('option');
             option.value = TIER_MAP[tierVal].value;
             option.textContent = TIER_MAP[tierVal].name;
-            if (parseInt(TIER_MAP[tierVal].value) === DEFAULT_TIER) option.selected = true; // Compare value, not key
+            // Use TIER_MAP[tierVal].value for comparison
+            if (TIER_MAP[tierVal].value === DEFAULT_TIER) option.selected = true;
             tierSelect.appendChild(option);
         }
         tierSelect.addEventListener('change', handleTierLevelChange);
@@ -84,54 +81,36 @@ document.addEventListener('DOMContentLoaded', () => {
         // Main Modifier
         slotDiv.appendChild(createModifierGroup(slot, 'main'));
 
-        // Secondary Positive Modifiers - Create fixed number initially (e.g., max expected)
-        const positiveGroup = document.createElement('div');
-        positiveGroup.classList.add('modifier-group', 'secondary-modifiers-container', 'positive-secondary-container');
+        // Secondary Positive Modifiers Container
+        const positiveContainer = document.createElement('div');
+        positiveContainer.classList.add('modifier-group', 'secondary-modifiers-container', 'positive-secondary-container');
         const positiveLabel = document.createElement('label');
-        // FIX #1: Label will be updated dynamically in updateSlotCalculations
-        positiveLabel.textContent = `Secondary Positive`;
-        positiveGroup.appendChild(positiveLabel);
-        // Create a reasonable max number of slots, they will be hidden/shown
-        const maxPositiveSlots = 3; // Keep a reasonable max for creation
-        for (let i = 0; i < maxPositiveSlots; i++) {
-            positiveGroup.appendChild(createModifierGroup(slot, 'secondary', 'positive', i));
-        }
-        slotDiv.appendChild(positiveGroup);
+        positiveLabel.textContent = `Secondary Positive`; // Count will be added dynamically
+        positiveContainer.appendChild(positiveLabel);
+        slotDiv.appendChild(positiveContainer);
 
-        // Secondary Negative Modifiers - Create fixed number initially
-        const negativeGroup = document.createElement('div');
-        negativeGroup.classList.add('modifier-group', 'secondary-modifiers-container', 'negative-secondary-container');
+        // Secondary Negative Modifiers Container
+        const negativeContainer = document.createElement('div');
+        negativeContainer.classList.add('modifier-group', 'secondary-modifiers-container', 'negative-secondary-container');
         const negativeLabel = document.createElement('label');
-         // FIX #1: Label will be updated dynamically in updateSlotCalculations
-        negativeLabel.textContent = `Secondary Negative`;
-        negativeGroup.appendChild(negativeLabel);
-        // Create a reasonable max number of slots
-        const maxNegativeSlots = 2; // Keep a reasonable max for creation
-        for (let i = 0; i < maxNegativeSlots; i++) {
-            negativeGroup.appendChild(createModifierGroup(slot, 'secondary', 'negative', i));
-        }
-        slotDiv.appendChild(negativeGroup);
+        negativeLabel.textContent = `Secondary Negative`; // Count will be added dynamically
+        negativeContainer.appendChild(negativeLabel);
+        slotDiv.appendChild(negativeContainer);
+
+        // Initial population of secondary slots based on default slot counts
+        updateSecondarySlots(slotElement, slot.secondaryPositiveCount, slot.secondaryNegativeCount);
 
         return slotDiv;
     }
 
-    function createModifierGroup(slot, type, positivity = null, index = 0) {
+     function createModifierGroup(slot, type, positivity = null, index = 0) {
         const groupDiv = document.createElement('div');
-        groupDiv.classList.add('modifier-selection-group'); // Renamed class for clarity
+        groupDiv.classList.add('modifier-selection-group'); // Renamed class
         if (type === 'secondary') {
             groupDiv.classList.add('secondary-modifier-slot');
-            groupDiv.dataset.index = index; // Store index for showing/hiding
-            groupDiv.style.display = 'none'; // Hide secondary slots initially
         }
 
-        const label = document.createElement('label');
         const selectId = `${slot.id}-${type}-${positivity ? positivity + '-' : ''}${index}`;
-        label.setAttribute('for', selectId);
-        if (type === 'main') {
-             label.textContent = 'Main Modifier:';
-             groupDiv.appendChild(label);
-        }
-        // Secondary labels are handled by the container label now
 
         const select = document.createElement('select');
         select.id = selectId;
@@ -166,9 +145,12 @@ document.addEventListener('DOMContentLoaded', () => {
         MODIFIERS.forEach(modifier => {
             let isAllowed = false;
             if (type === 'main') {
-                // FIX #8: Check allowedSlots includes the current slot.id (WeaponSlot now included)
-                isAllowed = modifier.type === 'main' && (!modifier.allowedSlots || modifier.allowedSlots.includes(slot.id));
+                // Main mods must be 'main' type AND allowed in this specific slot
+                isAllowed = modifier.type === 'main' && modifier.allowedSlots.includes(slot.id);
             } else { // secondary
+                // Secondary mods must be 'secondary' type AND match positivity
+                // We don't filter by allowedSlots here, as that depends on the *main* mod chosen.
+                // The filtering happens dynamically when the main mod changes.
                 isAllowed = modifier.type === 'secondary' && modifier.positivity === positivity;
             }
             if (isAllowed) {
@@ -186,12 +168,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return a.name.localeCompare(b.name); // Secondary sort by name
         });
 
+        // Clear existing options except the default
+        while (selectElement.options.length > 1) {
+            selectElement.remove(1);
+        }
+
+
         // Group by Rarity using <optgroup>
         let currentOptgroup = null;
         let currentRarity = null;
 
         addedModifiers.forEach(modifier => {
-            // Create optgroup if rarity changes
             if (modifier.rarity !== currentRarity) {
                 currentRarity = modifier.rarity;
                 currentOptgroup = document.createElement('optgroup');
@@ -202,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const option = document.createElement('option');
             option.value = modifier.id;
 
-            // Get base display text using default tier/level for the option text
+            // Use default tier/level for display text in the dropdown list
             const baseDisplayText = getModifierEffectText(modifier, DEFAULT_TIER, DEFAULT_LEVEL);
             const uniqueIndicator = modifier.rarity === 'Unique' ? '⭐ ' : '';
             option.textContent = uniqueIndicator + baseDisplayText;
@@ -213,7 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
             option.dataset.rarity = modifier.rarity;
             option.dataset.positivity = modifier.positivity;
             option.dataset.name = modifier.name.toLowerCase();
-            // Store the base text for filtering, without tier/level scaling applied yet
             option.dataset.effectText = baseDisplayText.toLowerCase();
 
             // Apply filtering
@@ -226,28 +212,34 @@ document.addEventListener('DOMContentLoaded', () => {
             if (currentOptgroup) {
                  currentOptgroup.appendChild(option);
             } else {
-                 selectElement.appendChild(option); // Fallback if no optgroup (shouldn't happen with sort)
+                 selectElement.appendChild(option); // Fallback
             }
         });
+
+         // Hide optgroups with no visible options
+         const optgroups = selectElement.querySelectorAll('optgroup');
+         optgroups.forEach(optgroup => {
+             const visibleOptions = optgroup.querySelectorAll('option:not(.hidden-option)');
+             optgroup.style.display = visibleOptions.length > 0 ? '' : 'none';
+         });
     }
 
      // --- Event Handlers ---
     function handleSelectChange(event) {
         const select = event.target;
         const slotElement = select.closest('.equipment-slot');
-        updateSlotCalculations(slotElement); // Recalculate everything, including secondary visibility
+        updateSlotCalculations(slotElement);
     }
 
     function handleTierLevelChange(event) {
         const input = event.target;
         const slotElement = input.closest('.equipment-slot');
 
-        // Validate level input
         if (input.classList.contains('item-level-input')) {
              let value = parseInt(input.value, 10);
              if (isNaN(value) || value < 1) value = 1;
              if (value > MAX_LEVEL) value = MAX_LEVEL;
-             input.value = value; // Correct the input value if needed
+             input.value = value; // Correct the value if out of bounds
         }
 
         updateSlotCalculations(slotElement);
@@ -255,42 +247,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleFilterChange() {
         const filterValue = filterInput.value.toLowerCase();
-        const allSelects = document.querySelectorAll('select');
-
-        allSelects.forEach(select => {
-            let hasVisibleOptionsInSelect = false;
-            const optgroups = select.querySelectorAll('optgroup');
-
-            // Handle options directly under select (like the default "-- Select --")
-            select.querySelectorAll(':scope > option:not([value=""])').forEach(option => {
-                 const name = option.dataset.name || '';
-                 const effectText = option.dataset.effectText || '';
-                 const matches = filterValue === '' || name.includes(filterValue) || effectText.includes(filterValue);
-                 option.classList.toggle('hidden-option', !matches);
-                 if(matches) hasVisibleOptionsInSelect = true;
-            });
-
-
-            optgroups.forEach(optgroup => {
-                let groupHasVisibleOptions = false;
-                const groupOptions = optgroup.querySelectorAll('option');
-                groupOptions.forEach(option => {
-                    const name = option.dataset.name || '';
-                    const effectText = option.dataset.effectText || '';
-                    const matches = filterValue === '' || name.includes(filterValue) || effectText.includes(filterValue);
-
-                    option.classList.toggle('hidden-option', !matches);
-                    if (matches) {
-                        groupHasVisibleOptions = true;
-                        hasVisibleOptionsInSelect = true; // Mark select as having visible options
-                    }
+        document.querySelectorAll('.equipment-slot').forEach(slotElement => {
+            const selects = slotElement.querySelectorAll('select.main-modifier-select, select.secondary-modifier-select');
+            selects.forEach(select => {
+                const optgroups = select.querySelectorAll('optgroup');
+                optgroups.forEach(optgroup => {
+                    let groupHasVisibleOptions = false;
+                    const groupOptions = optgroup.querySelectorAll('option');
+                    groupOptions.forEach(option => {
+                        const name = option.dataset.name || '';
+                        const effectText = option.dataset.effectText || '';
+                        const matches = filterValue === '' || name.includes(filterValue) || effectText.includes(filterValue);
+                        option.classList.toggle('hidden-option', !matches);
+                        if (matches) {
+                            groupHasVisibleOptions = true;
+                        }
+                    });
+                    optgroup.style.display = groupHasVisibleOptions ? '' : 'none';
                 });
-                 // Hide optgroup if it has no visible options
-                 optgroup.style.display = groupHasVisibleOptions ? '' : 'none';
             });
-
-             // Optional: Hide the entire select if no options match? Might be confusing.
-             // select.style.display = hasVisibleOptionsInSelect ? '' : 'none';
         });
     }
 
@@ -302,105 +277,131 @@ document.addEventListener('DOMContentLoaded', () => {
 
         allSelects.forEach(select => {
             select.value = ''; // Reset selection
-            // Clear dynamic classes and styles
-            select.className = select.className.replace(/selected-rarity-\w+/g, '').trim();
-            select.className = select.className.replace(/selected-positivity-\w+/g, '').trim();
-            select.style.borderColor = '';
-            select.title = '';
-            // Clear effect display
-            const effectDisplay = select.closest('.modifier-selection-group')?.querySelector('.modifier-effect-display');
-             if (effectDisplay) {
-                 effectDisplay.innerHTML = ' '; // Reset placeholder
-             }
+            // Trigger change to update display and calculations
+            select.dispatchEvent(new Event('change'));
         });
         allTiers.forEach(select => select.value = DEFAULT_TIER);
         allLevels.forEach(input => input.value = DEFAULT_LEVEL);
 
-        // Update calculations and visibility for all slots
+        // Recalculate everything after resetting
         document.querySelectorAll('.equipment-slot').forEach(updateSlotCalculations);
 
-        filterInput.value = ''; // Clear filter input
-        handleFilterChange(); // Re-apply filter (shows all options)
-        updateAllActiveStates(); // Update active/inactive based on cleared levels
+        filterInput.value = '';
+        handleFilterChange(); // Re-apply empty filter
     }
 
     // --- Calculation & Update Logic ---
+
+    // NEW function to dynamically add/remove secondary slots
+    function updateSecondarySlots(slotElement, positiveCount, negativeCount) {
+        const slot = SLOTS.find(s => s.id === slotElement.dataset.slotId);
+        const positiveContainer = slotElement.querySelector('.positive-secondary-container');
+        const negativeContainer = slotElement.querySelector('.negative-secondary-container');
+
+        // Update labels
+        positiveContainer.querySelector('label').textContent = `Secondary Positive (${positiveCount} max)`;
+        negativeContainer.querySelector('label').textContent = `Secondary Negative (${negativeCount} max)`;
+
+        // Clear existing secondary slots (excluding the label)
+        positiveContainer.querySelectorAll('.modifier-selection-group').forEach(el => el.remove());
+        negativeContainer.querySelectorAll('.modifier-selection-group').forEach(el => el.remove());
+
+        // Add new positive slots
+        for (let i = 0; i < positiveCount; i++) {
+            positiveContainer.appendChild(createModifierGroup(slot, 'secondary', 'positive', i));
+        }
+
+        // Add new negative slots
+        for (let i = 0; i < negativeCount; i++) {
+            negativeContainer.appendChild(createModifierGroup(slot, 'secondary', 'negative', i));
+        }
+         handleFilterChange(); // Re-apply filter to newly added selects
+    }
+
+
     function updateSlotCalculations(slotElement) {
         const tierSelect = slotElement.querySelector('.item-tier-select');
         const levelInput = slotElement.querySelector('.item-level-input');
         const itemTier = parseInt(tierSelect.value, 10) || DEFAULT_TIER;
         const itemLevel = parseInt(levelInput.value, 10) || DEFAULT_LEVEL;
 
-        const selectedModifiersForLevelCalc = []; // FIX #2: Array to hold all selected mods for level calc
+        const selectedModifiers = [];
         const mainSelect = slotElement.querySelector('select.main-modifier-select');
-        const secondaryPositiveSelects = slotElement.querySelectorAll('.positive-secondary-container .secondary-modifier-select');
-        const secondaryNegativeSelects = slotElement.querySelectorAll('.negative-secondary-container .secondary-modifier-select');
-
-        // Process Main Modifier
         const mainModifierId = mainSelect.value;
         const mainModifier = mainModifierId ? getModifierById(mainModifierId) : null;
-        if (mainModifier) {
-            selectedModifiersForLevelCalc.push(mainModifier); // Add main mod to list for level calc
-        }
-        updateModifierDisplay(mainSelect, mainModifier, itemTier, itemLevel);
+        selectedModifiers.push(mainModifier); // Add main mod (or null)
 
-        // FIX #1: Determine secondary counts based on main modifier, use defaults if none selected
-        const positiveCount = mainModifier?.secondaryPositiveCount ?? DEFAULT_SECONDARY_POSITIVE_COUNT;
-        const negativeCount = mainModifier?.secondaryNegativeCount ?? DEFAULT_SECONDARY_NEGATIVE_COUNT;
+        // Update secondary slot counts based on selected main modifier
+        const defaultSlotDef = SLOTS.find(s => s.id === slotElement.dataset.slotId);
+        const positiveCount = mainModifier?.secondaryPositiveCount ?? defaultSlotDef.secondaryPositiveCount;
+        const negativeCount = mainModifier?.secondaryNegativeCount ?? defaultSlotDef.secondaryNegativeCount;
+        updateSecondarySlots(slotElement, positiveCount, negativeCount); // Recreate secondary slots
 
-        // FIX #1: Update labels for secondary containers dynamically
-        const positiveContainerLabel = slotElement.querySelector('.positive-secondary-container > label');
-        if (positiveContainerLabel) positiveContainerLabel.textContent = `Secondary Positive (${positiveCount} max)`;
-        const negativeContainerLabel = slotElement.querySelector('.negative-secondary-container > label');
-        if (negativeContainerLabel) negativeContainerLabel.textContent = `Secondary Negative (${negativeCount} max)`;
+        // Now select secondary modifiers and update their display
+        const secondarySelects = slotElement.querySelectorAll('select.secondary-modifier-select');
+        secondarySelects.forEach(select => {
+            const selectedOption = select.options[select.selectedIndex];
+            const modifierId = selectedOption ? selectedOption.value : '';
+            const modifier = modifierId ? getModifierById(modifierId) : null;
+            selectedModifiers.push(modifier); // Add secondary mod (or null)
 
+            const effectDisplay = select.previousElementSibling;
+             if (effectDisplay && effectDisplay.classList.contains('modifier-effect-display')) {
+                 effectDisplay.innerHTML = modifier ? getModifierEffectText(modifier, itemTier, itemLevel) : ' ';
+             }
 
-        // Process and Show/Hide Positive Secondaries
-        secondaryPositiveSelects.forEach((select, index) => {
-            const groupDiv = select.closest('.modifier-selection-group');
-            // FIX #1: Show/hide based on count derived from main mod
-            if (index < positiveCount) {
-                groupDiv.style.display = ''; // Show slot
-                const modifierId = select.value;
-                const modifier = modifierId ? getModifierById(modifierId) : null;
-                if (modifier) {
-                     selectedModifiersForLevelCalc.push(modifier); // FIX #2: Add selected secondary to list
+            // Update select styling based on selected modifier
+            select.className = select.className.replace(/selected-rarity-\w+/g, '').trim();
+            select.className = select.className.replace(/selected-positivity-\w+/g, '').trim();
+            select.style.borderColor = ''; // Reset border
+            select.title = ''; // Reset title
+
+            if (modifier) {
+                const rarity = modifier.rarity;
+                const positivity = modifier.positivity;
+                if (rarity) {
+                    select.classList.add(`selected-rarity-${rarity.toLowerCase()}`);
+                    select.style.borderColor = getRarityColor(rarity);
                 }
-                updateModifierDisplay(select, modifier, itemTier, itemLevel);
-            } else {
-                groupDiv.style.display = 'none'; // Hide slot
-                if (select.value) { // If a hidden slot had a selection, clear it
-                    select.value = '';
-                    updateModifierDisplay(select, null, itemTier, itemLevel); // Update display to clear it
+                 if (positivity) {
+                     select.classList.add(`selected-positivity-${positivity.toLowerCase()}`);
                 }
-                // Do not add null to selectedModifiersForLevelCalc
-            }
-        });
-
-        // Process and Show/Hide Negative Secondaries
-        secondaryNegativeSelects.forEach((select, index) => {
-             const groupDiv = select.closest('.modifier-selection-group');
-             // FIX #1: Show/hide based on count derived from main mod
-            if (index < negativeCount) {
-                groupDiv.style.display = ''; // Show slot
-                const modifierId = select.value;
-                const modifier = modifierId ? getModifierById(modifierId) : null;
-                 if (modifier) {
-                     selectedModifiersForLevelCalc.push(modifier); // FIX #2: Add selected secondary to list
+                 let titleText = `Rarity: ${rarity}`;
+                 if (positivity) {
+                     titleText += ` | Type: ${positivity.charAt(0).toUpperCase() + positivity.slice(1)}`;
                  }
-                updateModifierDisplay(select, modifier, itemTier, itemLevel);
-            } else {
-                groupDiv.style.display = 'none'; // Hide slot
-                 if (select.value) { // If a hidden slot had a selection, clear it
-                    select.value = '';
-                    updateModifierDisplay(select, null, itemTier, itemLevel); // Update display to clear it
-                }
-                 // Do not add null to selectedModifiersForLevelCalc
+                 if(modifier.description) {
+                      titleText += `\nEffect Desc: ${modifier.description}`;
+                 }
+                 select.title = titleText;
             }
         });
 
-        // FIX #2: Calculate and display Required Soul Level using the collected list of selected modifiers
-        const requiredLevel = calculateRequiredLevel(selectedModifiersForLevelCalc, itemTier, itemLevel);
+         // Update Main Modifier display and styling (needs to be done after secondary slots are potentially recreated)
+         const mainEffectDisplay = mainSelect.previousElementSibling;
+         if (mainEffectDisplay && mainEffectDisplay.classList.contains('modifier-effect-display')) {
+             mainEffectDisplay.innerHTML = mainModifier ? getModifierEffectText(mainModifier, itemTier, itemLevel) : ' ';
+         }
+         mainSelect.className = mainSelect.className.replace(/selected-rarity-\w+/g, '').trim();
+         mainSelect.style.borderColor = '';
+         mainSelect.title = '';
+         if (mainModifier) {
+             const rarity = mainModifier.rarity;
+             if (rarity) {
+                 mainSelect.classList.add(`selected-rarity-${rarity.toLowerCase()}`);
+                 mainSelect.style.borderColor = getRarityColor(rarity);
+             }
+             let titleText = `Rarity: ${rarity}`;
+             if(mainModifier.description) {
+                  titleText += `\nEffect Desc: ${mainModifier.description}`;
+             }
+             mainSelect.title = titleText;
+         }
+
+
+        // Calculate and display Required Soul Level using only non-null modifiers
+        const validModifiers = selectedModifiers.filter(mod => mod !== null);
+        const requiredLevel = calculateRequiredLevel(validModifiers, itemTier, itemLevel);
         const reqLevelValueSpan = slotElement.querySelector('.req-level-value');
         if (reqLevelValueSpan) {
             reqLevelValueSpan.textContent = requiredLevel;
@@ -409,53 +410,16 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSlotActiveState(slotElement, requiredLevel);
     }
 
-    // Helper to update display for a single modifier select element
-    function updateModifierDisplay(selectElement, modifier, itemTier, itemLevel) {
-        const groupDiv = selectElement.closest('.modifier-selection-group');
-        const effectDisplay = groupDiv?.querySelector('.modifier-effect-display');
-
-        if (effectDisplay) {
-            effectDisplay.innerHTML = modifier ? getModifierEffectText(modifier, itemTier, itemLevel) : ' ';
-        }
-
-        // Clear previous dynamic styles/classes
-        selectElement.className = selectElement.className.replace(/selected-rarity-\w+/g, '').trim();
-        selectElement.className = selectElement.className.replace(/selected-positivity-\w+/g, '').trim();
-        selectElement.style.borderColor = '';
-        selectElement.title = ''; // Clear old title
-
-        if (modifier) {
-            const rarity = modifier.rarity;
-            const positivity = modifier.positivity;
-            if (rarity) {
-                selectElement.classList.add(`selected-rarity-${rarity.toLowerCase()}`);
-                selectElement.style.borderColor = getRarityColor(rarity); // Apply border color
-            }
-             if (positivity) {
-                 selectElement.classList.add(`selected-positivity-${positivity.toLowerCase()}`);
-            }
-             // Build tooltip
-             let titleText = `Rarity: ${rarity}`;
-             if (positivity) {
-                 titleText += ` | Type: ${positivity.charAt(0).toUpperCase() + positivity.slice(1)}`;
-             }
-             if(modifier.description) {
-                  titleText += `\nDesc: ${modifier.description}`;
-             }
-             // Add estimated required level contribution to tooltip
-             if (modifier.requiredLevelModifier !== undefined) {
-                 // FIX #3: Display the positive cost value here
-                 titleText += `\nEst. Base Lvl Cost: ${modifier.requiredLevelModifier}`;
-             }
-             selectElement.title = titleText;
-        }
-    }
-
 
     function updateSlotActiveState(slotElement, requiredLevel) {
         const playerLevel = parseInt(playerSoulLevelInput.value, 10) || 1;
         const isActive = playerLevel >= requiredLevel;
         slotElement.classList.toggle('inactive-slot', !isActive);
+         // Also update the required level text color
+        const reqLevelValueSpan = slotElement.querySelector('.req-level-value');
+        if (reqLevelValueSpan) {
+            reqLevelValueSpan.style.color = isActive ? 'var(--accent-color)' : 'var(--negative-color)';
+        }
     }
 
     function updateAllActiveStates() {
