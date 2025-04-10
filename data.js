@@ -42,51 +42,13 @@ const MAX_LEVEL = 10;
 // 'allowedSlots' will be generated dynamically later
 
 // Use 'let' here to allow reassignment after processing JSON data
-let MODIFIERS = [
-    // --- Main Modifiers (Standard Stats - Placeholder, will be overwritten by JSON) ---
-    // These are kept temporarily to avoid breaking the initial structure,
-    // but will be replaced or updated by the JSON import logic below.
-
-    // --- Main Modifiers (Custom EM_ Classes - Updated from JSON) ---
-    { id: 'EM_AcclimatizedLegging', name: 'Acclimatized Legging', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Gain % Damage Mitigation per stage.', isCustom: true, calcFunc: 'calcAcclimatizedLeggingValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['AcclimatizedLegging'], secondaryPositiveCount: 0, secondaryNegativeCount: 0 },
-    { id: 'EM_BandOfValiance', name: 'Band of Valiance', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Gain bonus % EXP from Elite/Champion enemies.', isCustom: true, calcFunc: 'calcBandOfValianceValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['BandOfValiance'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_BloodiedTowel', name: 'Bloodied Towel', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Gain % Corruption Multiplier per stage/zone.', isCustom: true, calcFunc: 'calcBloodiedTowelValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['BloodiedTowel'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_ExpertMonocle', name: 'Expert Monocle', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Increases Item Quality when items drop.', isCustom: true, calcFunc: 'calcExpertMonocleValue', requiredLevelModifier: -3, modifierType: 'CustomMain', relatedItemIds: ['ExpertMonocle'], secondaryPositiveCount: 1, secondaryNegativeCount: 0 },
-    { id: 'EM_FancyHat', name: 'Fancy Hat', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Reduces Shop prices.', isCustom: true, calcFunc: 'calcFancyHatValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['FancyHat'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_GoldenPlate', name: 'Golden Plate', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Gain flat Gold on Overkill.', isCustom: true, calcFunc: 'calcGoldenPlateValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['GoldenPlate'], secondaryPositiveCount: 2, secondaryNegativeCount: 1 },
-    { id: 'EM_GoldenRing', name: 'Golden Ring', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Increases chance for Limit Break items in shop.', isCustom: true, calcFunc: 'calcGoldenRingValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['PriestAttires'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 }, // Linked to PriestAttires item
-    { id: 'EM_Halo', name: 'Halo', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Gain % Power, Move Speed, Max Health, and Pickup Range.', isCustom: true, calcFunc: 'calcHaloValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['Halo'], secondaryPositiveCount: 0, secondaryNegativeCount: 0 },
-    { id: 'EM_HolyCrossguard', name: 'Holy Crossguard', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Gain flat Power based on active Challenge difficulty multiplier.', isCustom: true, calcFunc: 'calcHolyCrossguardValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['HolyCrossguard'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_KingSlayer', name: 'King Slayer', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Deal % more damage to Elite/Champion enemies that are targeted.', isCustom: true, calcFunc: 'calcKingSlayerValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['KingSlayer_Glove'], secondaryPositiveCount: 2, secondaryNegativeCount: 1 }, // Linked to KingSlayer_Glove item
-    { id: 'EM_KnightPendant', name: 'Knight Pendant', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Start with a specific Knight weapon. (Variant)', isCustom: true, calcFunc: 'calcKnightPendantValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['KnightPendant'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_NinjaTabi', name: 'Ninja Tabi', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Reduces One-Shot Protection cooldown.', isCustom: true, calcFunc: 'calcNinjaTabiValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['NinjaTabi'], secondaryPositiveCount: 2, secondaryNegativeCount: 1 },
-    { id: 'EM_NobleSlayer', name: 'Noble Slayer', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Deal % more damage to Elite/Champion enemies.', isCustom: true, calcFunc: 'calcNobleSlayerValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['NobleSlayer_Glove'], secondaryPositiveCount: 2, secondaryNegativeCount: 1 }, // Linked to NobleSlayer_Glove item
-    { id: 'EM_SoulJar', name: 'Soul Jar', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Gain % Soul Coin Gain based on total Overkills (logarithmic).', isCustom: true, calcFunc: 'calcSoulJarValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['SoulJar'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_Specialization', name: 'Specialization', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Gain % more Global Damage if you only have one weapon.', isCustom: true, calcFunc: 'calcSpecializationValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['Specialization_Amulet'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 }, // Assuming an item exists
-    { id: 'EM_TowerShield', name: 'Tower Shield', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Reduces the % max health threshold required for One-Shot Protection to trigger.', isCustom: true, calcFunc: 'calcTowerShieldValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['TowerShield'], secondaryPositiveCount: 1, secondaryNegativeCount: 2 },
-    { id: 'EM_Trainer', name: 'Trainer', type: 'main', positivity: 'positive', rarity: 'Unique', allowedSlots: [], description: 'Your first weapon starts at a higher level.', isCustom: true, calcFunc: 'calcTrainerValue', requiredLevelModifier: 0, modifierType: 'CustomMain', relatedItemIds: ['Trainer_Glove'], secondaryPositiveCount: 2, secondaryNegativeCount: 1 }, // Linked to Trainer_Glove item
-
-    // --- God Stones (Main Modifiers - Updated from JSON) ---
-    { id: 'EM_FireStone', name: 'Fire Stone', type: 'main', positivity: 'positive', rarity: 'Rare', allowedSlots: [], description: '+% Fire Card Drop Chance, +% Piercing Scaling, +% Power.', isCustom: true, calcFunc: 'calcFireStoneValue', requiredLevelModifier: 6, modifierType: 'CustomMain', relatedItemIds: ['FireStone'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_FieryStone', name: 'Fiery Stone', type: 'main', positivity: 'positive', rarity: 'Epic', allowedSlots: [], description: 'Improved Fire Stone effects.', isCustom: true, calcFunc: 'calcFieryStoneValue', requiredLevelModifier: 9, modifierType: 'CustomMain', relatedItemIds: ['FieryStone'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_WindStone', name: 'Wind Stone', type: 'main', positivity: 'positive', rarity: 'Rare', allowedSlots: [], description: '+% Wind Card Drop Chance, +% Attack Speed, -% Dash Cooldown, +% Move Speed.', isCustom: true, calcFunc: 'calcWindStoneValue', requiredLevelModifier: 6, modifierType: 'CustomMain', relatedItemIds: ['WindStone'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_GaleStone', name: 'Gale Stone', type: 'main', positivity: 'positive', rarity: 'Epic', allowedSlots: [], description: 'Improved Wind Stone effects.', isCustom: true, calcFunc: 'calcGaleStoneValue', requiredLevelModifier: 9, modifierType: 'CustomMain', relatedItemIds: ['GaleStone'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_MoonStone', name: 'Moon Stone', type: 'main', positivity: 'positive', rarity: 'Rare', allowedSlots: [], description: '+% Moon Card Drop Chance, +% Damage Mitigation, +% Defence.', isCustom: true, calcFunc: 'calcMoonStoneValue', requiredLevelModifier: 6, modifierType: 'CustomMain', relatedItemIds: ['MoonStone'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_LunarStone', name: 'Lunar Stone', type: 'main', positivity: 'positive', rarity: 'Epic', allowedSlots: [], description: 'Improved Moon Stone effects.', isCustom: true, calcFunc: 'calcLunarStoneValue', requiredLevelModifier: 9, modifierType: 'CustomMain', relatedItemIds: ['LunarStone'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_SunStone', name: 'Sun Stone', type: 'main', positivity: 'positive', rarity: 'Rare', allowedSlots: [], description: '+% Sun Card Drop Chance, +% Purification, +% XP Gain.', isCustom: true, calcFunc: 'calcSunStoneValue', requiredLevelModifier: 6, modifierType: 'CustomMain', relatedItemIds: ['SunStone'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_SolarStone', name: 'Solar Stone', type: 'main', positivity: 'positive', rarity: 'Epic', allowedSlots: [], description: 'Improved Sun Stone effects.', isCustom: true, calcFunc: 'calcSolarStoneValue', requiredLevelModifier: 9, modifierType: 'CustomMain', relatedItemIds: ['SolarStone'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_StelarStone', name: 'Stelar Stone', type: 'main', positivity: 'positive', rarity: 'Mythical', allowedSlots: [], description: 'Combines and improves Sun and Moon Stone effects.', isCustom: true, calcFunc: 'calcStelarStoneValue', requiredLevelModifier: 12, modifierType: 'CustomMain', relatedItemIds: ['StelarStone'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-    { id: 'EM_StormStone', name: 'Storm Stone', type: 'main', positivity: 'positive', rarity: 'Mythical', allowedSlots: [], description: 'Combines and improves Fire and Wind Stone effects.', isCustom: true, calcFunc: 'calcStormStoneValue', requiredLevelModifier: 12, modifierType: 'CustomMain', relatedItemIds: ['StormStone'], secondaryPositiveCount: 1, secondaryNegativeCount: 1 },
-
-    // --- Secondary Modifiers (Custom EM_ Classes - Updated from JSON) ---
-    { id: 'EM_WeaponFinaleDamage', name: 'Weapon Finale Damage', type: 'secondary', positivity: 'positive', rarity: 'Legendary', allowedSlots: [], description: 'Increases Final Damage of a specific weapon. (Variant)', isCustom: true, calcFunc: 'calcWeaponFinaleDamageValue', requiredLevelModifier: 5, modifierType: 'CustomSecondary', relatedItemIds: [] }, // No specific item link in JSON
-
-    // --- Standard Secondary Modifiers (Will be populated from JSON below) ---
-];
+// Initialize as empty, it will be populated entirely from JSON processing below.
+let MODIFIERS = [];
 
 // --- JSON Data Integration ---
 const jsonData = {
   "ModifierDataExport_Relevant": [
+    // ... (Keep the full JSON data as provided before) ...
     { "Id": "Ring_M_AttackSpeed", "Rarity": "Uncommon", "StatName": "AttackCoolDown", "StatsApplicationType": "Multiplier", "BaseValue": 0.949999988079071, "ValuePerLevel": 1.0, "RequiredLevelModifier": 3.0, "ModifierType": "Main", "SecondaryPositiveCount": 1, "SecondaryNegativeCount": 1, "RelatedItemIds": [ "Procedural_Ring" ], "Variants": [] },
     { "Id": "Ring_M_EnemyCount", "Rarity": "Uncommon", "StatName": "EnemyCount", "StatsApplicationType": "Multiplier", "BaseValue": 1.0499999523162842, "ValuePerLevel": 1.0, "RequiredLevelModifier": 0.0, "ModifierType": "Main", "SecondaryPositiveCount": 1, "SecondaryNegativeCount": 1, "RelatedItemIds": [ "Procedural_Ring" ], "Variants": [] },
     { "Id": "Ring_M_EnemyCountLegendary", "Rarity": "Legendary", "StatName": "EnemyCount", "StatsApplicationType": "Multiplier", "BaseValue": 1.1000000238418579, "ValuePerLevel": 1.0, "RequiredLevelModifier": 5.0, "ModifierType": "Main", "SecondaryPositiveCount": 1, "SecondaryNegativeCount": 1, "RelatedItemIds": [ "Procedural_Ring" ], "Variants": [] },
@@ -146,6 +108,7 @@ const jsonData = {
     { "Id": "M_TowerShield", "Rarity": "Unique", "StatName": "None", "StatsApplicationType": "Base", "BaseValue": 0.0, "ValuePerLevel": 0.0, "RequiredLevelModifier": 0.0, "ModifierType": "CustomMain", "SecondaryPositiveCount": 1, "SecondaryNegativeCount": 2, "RelatedItemIds": [ "TowerShield" ], "Variants": [] }
   ],
   "EquipmentDataExport_Relevant": [
+    // ... (Keep the full JSON data as provided before) ...
     { "Id": "FieryStone", "PossibleMainModifiersWeighted": [ "M_FieryStone" ], "PossibleSlotIds": [ "Accesory1", "Accesory2" ], "MinTier": "C", "MaxTier": "A" },
     { "Id": "FireStone", "PossibleMainModifiersWeighted": [ "M_FireStone" ], "PossibleSlotIds": [ "Accesory1", "Accesory2" ], "MinTier": "F", "MaxTier": "D" },
     { "Id": "GaleStone", "PossibleMainModifiersWeighted": [ "M_GaleStone" ], "PossibleSlotIds": [ "Accesory1", "Accesory2" ], "MinTier": "C", "MaxTier": "A" },
@@ -193,6 +156,7 @@ const jsonData = {
     { "Id": "TowerShield", "PossibleMainModifiersWeighted": [ "M_TowerShield" ], "PossibleSlotIds": [ "Shield" ], "MinTier": "UNDEFINED", "MaxTier": "UNDEFINED" }
   ],
   "SlotDataExport_Relevant": [
+    // ... (Keep the full JSON data as provided before) ...
     { "Id": "Accesory1", "Name": "Accessory" },
     { "Id": "Accesory2", "Name": "Accessory" },
     { "Id": "Boots", "Name": "Boots" },
@@ -228,24 +192,42 @@ const websiteSlotMapping = {
     // WeaponSlot: ['WeaponSlot'] // If needed
 };
 
-// 3. Process and Update/Add Modifiers
+// 3. Process and Update/Add Modifiers from JSON
 const finalModifiers = [];
-const existingModifierIds = new Set(MODIFIERS.map(m => m.id));
 const jsonModifierIds = new Set(jsonData.ModifierDataExport_Relevant.map(m => m.Id));
 
-// Update existing or add new from JSON
+// Helper function to generate a default name from ID
+function generateNameFromId(id) {
+    // Remove common prefixes like M_, EM_, Chest_, Ring_, etc.
+    let name = id.replace(/^(M_|EM_|Chest_|Ring_|Boot_|Glove_|Helmet_|Legging_|Shield_|Holster_)/, '');
+    // Add spaces before capital letters (camelCase to Title Case)
+    name = name.replace(/([A-Z])/g, ' $1');
+    // Replace underscores with spaces
+    name = name.replace(/_/g, ' ');
+    // Trim whitespace and capitalize first letter
+    name = name.trim();
+    return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+// Process modifiers defined in the JSON data
 jsonData.ModifierDataExport_Relevant.forEach(jsonMod => {
-    const existingMod = MODIFIERS.find(m => m.id === jsonMod.Id);
-    const isCustom = jsonMod.Id.startsWith('EM_');
+    // Check if a modifier with a similar name/purpose already exists in the initial hardcoded list
+    // This part is tricky and might need refinement based on naming conventions
+    // For now, we prioritize the JSON data directly.
+    // const existingMod = MODIFIERS_INITIAL.find(m => m.id === jsonMod.Id); // Check against initial list if needed
+
+    const isCustom = jsonMod.Id.startsWith('EM_') || jsonMod.ModifierType.startsWith('Custom');
+    const generatedName = generateNameFromId(jsonMod.Id);
 
     const newModData = {
         id: jsonMod.Id,
-        name: existingMod?.name || jsonMod.Id.replace(/_/g, ' '), // Use existing name or generate one
+        name: generatedName, // Use generated name
         type: jsonMod.ModifierType === 'Main' ? 'main' : 'secondary',
-        positivity: existingMod?.positivity || (jsonMod.Id.includes('_SecNeg') ? 'negative' : 'positive'), // Infer positivity for non-custom secondaries
+        // Infer positivity for standard secondaries if not explicitly set
+        positivity: jsonMod.positivity || (jsonMod.ModifierType === 'Secondary' && jsonMod.Id.includes('SecNeg') ? 'negative' : 'positive'),
         rarity: jsonMod.Rarity,
         allowedSlots: [], // Will be populated later
-        description: existingMod?.description || `Stat: ${jsonMod.StatName}`, // Use existing or basic desc
+        description: `Stat: ${jsonMod.StatName}`, // Basic description
         statName: jsonMod.StatName === 'None' ? null : jsonMod.StatName, // Handle "None" stat
         statsApplicationType: jsonMod.StatsApplicationType,
         baseValue: jsonMod.BaseValue,
@@ -255,30 +237,20 @@ jsonData.ModifierDataExport_Relevant.forEach(jsonMod => {
         relatedItemIds: jsonMod.RelatedItemIds || [],
         secondaryPositiveCount: jsonMod.ModifierType === 'Main' ? jsonMod.SecondaryPositiveCount : undefined,
         secondaryNegativeCount: jsonMod.ModifierType === 'Main' ? jsonMod.SecondaryNegativeCount : undefined,
-        isCustom: isCustom || jsonMod.ModifierType.startsWith('Custom'), // Mark custom types
-        calcFunc: existingMod?.calcFunc || (isCustom || jsonMod.ModifierType.startsWith('Custom') ? `calc${jsonMod.Id.substring(2)}Value` : null), // Keep existing or generate calcFunc name
-        scaleWithItemTierAndLevel: existingMod?.scaleWithItemTierAndLevel ?? true // Default to true unless specified otherwise
+        isCustom: isCustom,
+        // Generate calcFunc name for custom mods if not provided
+        calcFunc: isCustom ? `calc${jsonMod.Id.replace(/^M_|^EM_/, '')}Value` : null,
+        scaleWithItemTierAndLevel: true // Default to true unless specified otherwise
     };
 
-    // Refine positivity for custom main mods if needed (most seem positive)
-    if (newModData.type === 'main' && newModData.positivity === 'negative') {
-         // Example: If M_Horizon_Void should be considered positive despite negative req level
-         if (newModData.id === 'M_Horizon_Void') newModData.positivity = 'positive';
-         // Add more exceptions if needed
-    }
-
+    // Refine positivity for specific cases if needed
+    if (newModData.id === 'M_Horizon_Void') newModData.positivity = 'positive';
 
     finalModifiers.push(newModData);
 });
 
-// Add any existing website modifiers that weren't in the JSON (optional, if needed)
-MODIFIERS.forEach(webMod => {
-    if (!jsonModifierIds.has(webMod.id) && !webMod.id.startsWith('Stat_')) { // Keep custom ones not in JSON? Exclude basic Stat_ ones unless they were updated
-        console.warn(`Modifier "${webMod.id}" exists on website but not in JSON export. Keeping it.`);
-        finalModifiers.push(webMod); // Keep it, but its data might be inaccurate
-    }
-});
-
+// REMOVED the loop that added "website-only" modifiers, as it was causing duplication.
+// The JSON data is now the single source of truth for the modifiers list.
 
 // 4. Generate Allowed Slots
 finalModifiers.forEach(modifier => {
@@ -293,21 +265,17 @@ finalModifiers.forEach(modifier => {
                     if (websiteSlots) {
                         websiteSlots.forEach(wsId => allowed.add(wsId));
                     } else {
+                        // Keep warning for unmapped slots
                         console.warn(`No website slot mapping found for JSON slot ID: ${jsonSlotId} (Item: ${itemId}, Modifier: ${modifier.id})`);
                     }
                 });
-            } else {
-                 // This might happen for modifiers linked to items not in the equipment export (e.g., Specialization_Amulet)
-                 // console.warn(`Equipment item ID "${itemId}" not found in JSON export (Modifier: ${modifier.id}). Cannot determine allowed slots from it.`);
             }
+            // No warning needed if equipment itself isn't found, might be intentional
         });
     } else if (modifier.type === 'secondary') {
-         // If a secondary has no direct item link (common), assume it can go anywhere a secondary of its positivity can go.
-         // This is an approximation as the *real* limitation comes from the main mod's possible secondaries.
-         // console.warn(`Secondary modifier "${modifier.id}" has no relatedItemIds. Allowing all slots as a fallback.`);
-         // SLOTS.forEach(slot => allowed.add(slot.id)); // Allow all as fallback (less accurate)
-         // OR leave it empty and rely on filtering during population
-         modifier.allowedSlots = []; // Leave empty, population logic will handle it based on main mod
+         // Secondary mods without explicit item links: leave allowedSlots empty.
+         // Population logic in script.js will handle filtering based on main mod.
+         modifier.allowedSlots = [];
          return; // Skip setting allowedSlots directly
     } else if (!modifier.isCustom && modifier.type === 'main' && modifier.statName) {
          // Fallback for standard main stats not linked via JSON (shouldn't happen with good JSON)
@@ -318,31 +286,37 @@ finalModifiers.forEach(modifier => {
 
     modifier.allowedSlots = Array.from(allowed);
 
-    // Special Case: Rings have different secondary counts
-    if (modifier.type === 'main' && (modifier.allowedSlots.includes('Ring1') || modifier.allowedSlots.includes('Ring2'))) {
-        // Find the corresponding Ring slot definition
-        const ringSlot1 = SLOTS.find(s => s.id === 'Ring1');
-        // const ringSlot2 = SLOTS.find(s => s.id === 'Ring2'); // ringSlot2 was unused
-        if (ringSlot1) {
-            modifier.secondaryPositiveCount = ringSlot1.secondaryPositiveCount;
-            modifier.secondaryNegativeCount = ringSlot1.secondaryNegativeCount;
+    // Override secondary counts based on slot type (Rings vs others)
+    // This should happen *after* allowedSlots are determined.
+    if (modifier.type === 'main') {
+        const isRing = modifier.allowedSlots.some(sId => sId === 'Ring1' || sId === 'Ring2');
+        if (isRing) {
+            const ringSlotDef = SLOTS.find(s => s.id === 'Ring1'); // Get counts from Ring1 def
+            if (ringSlotDef) {
+                modifier.secondaryPositiveCount = ringSlotDef.secondaryPositiveCount;
+                modifier.secondaryNegativeCount = ringSlotDef.secondaryNegativeCount;
+            }
+        } else if (modifier.allowedSlots.length > 0) {
+            // For non-rings, use counts from the first allowed slot definition,
+            // but only if the JSON didn't already provide counts.
+            if (modifier.secondaryPositiveCount === undefined || modifier.secondaryNegativeCount === undefined) {
+                const firstAllowedSlotId = modifier.allowedSlots[0];
+                const slotDef = SLOTS.find(s => s.id === firstAllowedSlotId);
+                if (slotDef) {
+                    modifier.secondaryPositiveCount = modifier.secondaryPositiveCount ?? slotDef.secondaryPositiveCount;
+                    modifier.secondaryNegativeCount = modifier.secondaryNegativeCount ?? slotDef.secondaryNegativeCount;
+                } else {
+                    // Absolute fallback if slotDef not found
+                    modifier.secondaryPositiveCount = modifier.secondaryPositiveCount ?? 2;
+                    modifier.secondaryNegativeCount = modifier.secondaryNegativeCount ?? 1;
+                }
+            }
+        } else {
+             // Main mod with no allowed slots? Fallback counts.
+             modifier.secondaryPositiveCount = modifier.secondaryPositiveCount ?? 2;
+             modifier.secondaryNegativeCount = modifier.secondaryNegativeCount ?? 1;
         }
-         // No need to check Ring2 separately as they have the same counts
-    } else if (modifier.type === 'main' && modifier.allowedSlots.length > 0) {
-        // For other slots, try to get counts from the first allowed slot definition
-        const firstAllowedSlotId = modifier.allowedSlots[0];
-        const slotDef = SLOTS.find(s => s.id === firstAllowedSlotId);
-         if (slotDef && modifier.secondaryPositiveCount === undefined) { // Only if not already set by JSON
-             modifier.secondaryPositiveCount = slotDef.secondaryPositiveCount;
-             modifier.secondaryNegativeCount = slotDef.secondaryNegativeCount;
-         } else if (modifier.secondaryPositiveCount === undefined) {
-             // Fallback if slot definition not found or counts missing
-             modifier.secondaryPositiveCount = 2;
-             modifier.secondaryNegativeCount = 1;
-         }
     }
-
-
 });
 
 
@@ -362,11 +336,40 @@ function formatNumber(num) {
     return parseFloat(fixed).toString(); // Remove trailing zeros like .00
 }
 
-// Mimics EquipmentModifier.GetFixedValue / GetVariableValue / GetFinalValue
-// Adjusted scaling factors based on C# code analysis
-// SonarLint: Cognitive Complexity was high, simplified slightly and added comments
+// --- Refactored calculateModifierValue Helpers (for SonarLint S3776) ---
+
+function calculateFixedValuePart(baseValue, itemTier, itemLevel, scale, isMultiplier) {
+    let fixedValue = isMultiplier ? 1 : 0;
+    if (baseValue !== (isMultiplier ? 1 : 0)) {
+        if (isMultiplier) {
+            const exponent = scale ? (0.8 + (0.01 * (itemLevel - 1)) + 0.2 * itemTier) : 1;
+            fixedValue = Math.pow(baseValue, exponent);
+        } else { // Base or Post
+            const multiplier = scale ? (1 + 0.05 * (itemLevel - 1) + 0.1 * itemTier) : 1;
+            fixedValue = baseValue * multiplier;
+        }
+    }
+    return fixedValue;
+}
+
+function calculateVariableValuePart(valuePerLevel, playerLevel, itemTier, itemLevel, scale, isMultiplier) {
+    let variableValue = isMultiplier ? 1 : 0;
+    if (valuePerLevel !== (isMultiplier ? 1 : 0) && playerLevel > 0) {
+        if (isMultiplier) {
+            const baseVarMult = Math.pow(valuePerLevel, playerLevel);
+            const exponent = scale ? (0.875 + (0.005 * (itemLevel - 1)) + 0.125 * itemTier) : 1;
+            variableValue = Math.pow(baseVarMult, exponent);
+        } else { // Base or Post
+            const multiplier = scale ? (0.5 + 0.025 * (itemLevel - 1) + 0.5 * itemTier) : 1.0;
+            variableValue = valuePerLevel * playerLevel * multiplier;
+        }
+    }
+    return variableValue;
+}
+
+// Main calculation function using helpers
 function calculateModifierValue(modifier, itemTier, itemLevel, playerLevel = 1) {
-    // Guard clauses for invalid inputs
+    // Guard clauses
     if (!modifier || (!modifier.statName && !modifier.isCustom)) return 0;
     if (modifier.isCustom) return 0; // Custom values handled by specific calcFunc
 
@@ -377,60 +380,20 @@ function calculateModifierValue(modifier, itemTier, itemLevel, playerLevel = 1) 
     itemTier = Number(itemTier) || 1;
     itemLevel = Number(itemLevel) || 1;
 
-    let fixedValue = isMultiplier ? 1 : 0;
-    let variableValue = isMultiplier ? 1 : 0;
+    const fixedValue = calculateFixedValuePart(baseValue, itemTier, itemLevel, scale, isMultiplier);
+    const variableValue = calculateVariableValuePart(valuePerLevel, playerLevel, itemTier, itemLevel, scale, isMultiplier);
 
-    // --- Fixed Value Part ---
-    // Calculate the part of the value derived from the modifier's BaseValue
-    if (baseValue !== (isMultiplier ? 1 : 0)) {
-        if (isMultiplier) {
-            // C# Example: MathF.Pow(this.GetBaseValue(), scale ? (float)(0.8 + (0.01 * (itemLevel - 1)) + 0.2 * itemTier) : 1f);
-            const exponent = scale ? (0.8 + (0.01 * (itemLevel - 1)) + 0.2 * itemTier) : 1;
-            fixedValue = Math.pow(baseValue, exponent);
-        } else { // Base or Post
-            // C# Example: this.GetBaseValue() * (scale ? (float)(1 + 0.05 * (itemLevel - 1) + 0.1 * itemTier) : 1f); -> Adjusted based on common patterns
-            const multiplier = scale ? (1 + 0.05 * (itemLevel - 1) + 0.1 * itemTier) : 1;
-            fixedValue = baseValue * multiplier;
-        }
-    }
-
-    // --- Variable Value Part ---
-    // Calculate the part of the value derived from the modifier's ValuePerLevel (scaled by playerLevel)
-    if (valuePerLevel !== (isMultiplier ? 1 : 0) && playerLevel > 0) {
-        if (isMultiplier) {
-            // C# Example: MathF.Pow(MathF.Pow(this.GetValuePerLevel(), playerLevel), scale ? (float)(0.875 + (0.005 * (itemLevel - 1)) + 0.125 * itemTier) : 1f);
-            const baseVarMult = Math.pow(valuePerLevel, playerLevel);
-            const exponent = scale ? (0.875 + (0.005 * (itemLevel - 1)) + 0.125 * itemTier) : 1;
-            variableValue = Math.pow(baseVarMult, exponent);
-        } else { // Base or Post
-            // C# Example: (float)((double)this.GetValuePerLevel() * (double)playerLevel * (scale ? 0.5 + 0.025 * (itemLevel - 1) + 0.5 * itemTier : 1.0));
-            const multiplier = scale ? (0.5 + 0.025 * (itemLevel - 1) + 0.5 * itemTier) : 1.0;
-            variableValue = valuePerLevel * playerLevel * multiplier;
-        }
-    }
-
-    // --- Combine ---
+    // Combine
     let finalValue;
     if (isMultiplier) {
         const calculated = fixedValue * variableValue;
-        // Handle potential NaN or 0 results for multipliers, default to 1 (no change)
-        // Extracted nested ternary for SonarLint S3358
-        if (isNaN(calculated) || calculated === 0) {
-            finalValue = 1;
-        } else {
-            finalValue = calculated;
-        }
+        finalValue = (isNaN(calculated) || calculated === 0) ? 1 : calculated;
     } else { // Base or Post
         finalValue = (fixedValue || 0) + (variableValue || 0);
     }
 
     // Ensure value is not NaN
-    // Extracted nested ternary for SonarLint S3358
-    if (isNaN(finalValue)) {
-        return isMultiplier ? 1 : 0;
-    } else {
-        return finalValue;
-    }
+    return isNaN(finalValue) ? (isMultiplier ? 1 : 0) : finalValue;
 }
 
 
@@ -499,63 +462,101 @@ const statDisplayNameMap = {
     'CardDropChance_Wind': 'Wind Drop Chance',
     'CardDropChance_Moon': 'Moon Drop Chance',
     'CardDropChance_Sun': 'Sun Drop Chance',
+    'DamageMitigation': 'Damage Mitigation',
+    'Defence': 'Defence',
+    'CriticalChance': 'Crit Chance',
+    'SoulCoinGain': 'Soul Coin Gain',
+    'MasteryGain': 'Mastery Gain',
+    'AreaSize': 'Area Size',
+    'ProjectileSpeed': 'Projectile Speed',
+    'MoveSpeed': 'Move Speed',
+    'AdditionalProjectile': 'Add. Projectile',
+    'ProjectileLifeTime': 'Projectile Lifetime',
+    'ProjectilePiercing': 'Projectile Piercing',
+    'ProjectileSize': 'Projectile Size',
+    'PiercingScaling': 'Piercing Scaling',
+    'GoldGain': 'Gold Gain',
+    'EnemyCount': 'Enemy Count',
+    'WeaponPerModifier': '+ Weapon Mod Slot', // Special case display
+    'DashCharge': 'Dash Charge',
     // Add more specific replacements as needed
 };
 
-// SonarLint: Cognitive Complexity was high, simplified slightly
+// --- Refactored getDisplayTextForStandardStat Helpers (for SonarLint S3776) ---
+
+function formatMultiplierStatDisplay(finalValue, statName, internalStatName) {
+    let displayValue;
+    let prefix = "";
+    let suffix = "%";
+    let statDisplayName = statDisplayNameMap[internalStatName] || statName; // Use mapped name or formatted name
+    const isNearOne = Math.abs(finalValue - 1) < 0.001;
+
+    if (isNearOne) {
+        displayValue = 0; // No change
+        prefix = "+";
+    } else {
+        displayValue = (finalValue - 1) * 100;
+        prefix = displayValue > 0 ? "+" : "";
+
+        // Special handling for stats where lower multiplier is better
+        const lowerIsBetter = ['Attack Speed', 'Dash Cooldown'].includes(statDisplayName);
+        const isMitigation = internalStatName === 'DamageMitigation';
+
+        if ((lowerIsBetter || isMitigation) && finalValue < 1) {
+            displayValue = (1 - finalValue) * 100; // Show reduction %
+            prefix = lowerIsBetter ? "-" : "+"; // Indicate reduction (-) or positive effect (+)
+        } else if (isMitigation && finalValue > 1) {
+            // displayValue is already calculated as positive % increase
+            prefix = "-"; // Indicate negative effect (less mitigation)
+            statDisplayName += " (Taken)"; // Clarify it's damage taken increase
+        }
+    }
+    return `${prefix}${formatNumber(displayValue)}${suffix} ${statDisplayName}`;
+}
+
+function formatBaseOrPostStatDisplay(finalValue, statName, internalStatName) {
+    const isNearZero = Math.abs(finalValue) < 0.001;
+    let prefix = finalValue > 0 && !isNearZero ? "+" : "";
+    let suffix = ""; // Add suffix if needed for specific stats (e.g., 's' for time)
+    let statDisplayName = statDisplayNameMap[internalStatName] || statName; // Use mapped name or formatted name
+
+    // Special case for WeaponPerModifier
+    if (internalStatName === 'WeaponPerModifier') {
+        return `+${formatNumber(finalValue)} Weapon Modifier Slot`;
+    }
+    if (internalStatName === 'DashCharge') {
+         return `+${formatNumber(finalValue)} Dash Charge`;
+    }
+     if (internalStatName === 'AdditionalProjectile') {
+         return `+${formatNumber(finalValue)} Projectile`;
+     }
+      if (internalStatName === 'ProjectilePiercing') {
+         return `+${formatNumber(finalValue)} Pierce`;
+     }
+
+
+    return `${prefix}${formatNumber(finalValue)}${suffix} ${statDisplayName}`;
+}
+
+// Main display text function using helpers
 function getDisplayTextForStandardStat(modifier, itemTier, itemLevel) {
-    // Use optional chaining for safer access
     if (!modifier?.statName) return 'N/A';
 
     const finalValue = calculateModifierValue(modifier, itemTier, itemLevel);
-    let displayValue = finalValue;
-    let prefix = "";
-    let suffix = "";
-
-    // Get base display name, apply common replacements first
-    let statDisplayName = statDisplayNameMap[modifier.statName] || modifier.statName;
-    // Generic replacements (add spaces before capitals)
-    statDisplayName = statDisplayName.replace(/([A-Z])/g, ' $1').trim();
-
     const isMultiplier = modifier.statsApplicationType === 'Multiplier';
-    const isNearZero = Math.abs(finalValue) < 0.001;
-    const isNearOne = Math.abs(finalValue - 1) < 0.001;
+
+    // Format the base stat name (add spaces, etc.) - do this once
+    let formattedStatName = modifier.statName.replace(/([A-Z])/g, ' $1').trim();
 
     if (isMultiplier) {
-        suffix = "%";
-        if (isNearOne) {
-            displayValue = 0; // No change
-            prefix = "+";
-        } else {
-            // Calculate percentage change from 1
-            displayValue = (finalValue - 1) * 100;
-            prefix = displayValue > 0 ? "+" : ""; // Add + only if positive % change
-
-            // Special handling for stats where lower multiplier is better
-            const lowerIsBetter = ['Attack Speed', 'Dash Cooldown'].includes(statDisplayName);
-            const isMitigation = modifier.statName === 'DamageMitigation';
-
-            if ((lowerIsBetter || isMitigation) && finalValue < 1) {
-                displayValue = (1 - finalValue) * 100; // Show reduction %
-                prefix = lowerIsBetter ? "-" : "+"; // Indicate reduction (-) or positive effect (+)
-            } else if (isMitigation && finalValue > 1) {
-                displayValue = (finalValue - 1) * 100; // Show increased damage taken %
-                prefix = "-"; // Indicate negative effect (less mitigation)
-                statDisplayName += " (Taken)"; // Clarify it's damage taken increase
-            }
-        }
+        return formatMultiplierStatDisplay(finalValue, formattedStatName, modifier.statName);
     } else { // Base or Post
-        prefix = finalValue > 0 && !isNearZero ? "+" : "";
-        // Suffix might depend on stat (e.g., 's' for duration) - skip for simplicity
+        return formatBaseOrPostStatDisplay(finalValue, formattedStatName, modifier.statName);
     }
-
-    // Avoid showing prefix for zero values unless it's a percentage
-    if (isNearZero && !isMultiplier) {
-        prefix = "";
-    }
-
-    return `${prefix}${formatNumber(displayValue)}${suffix} ${statDisplayName}`;
 }
+
+// --- Custom Calculation Functions ---
+// (Keep all calc...Value functions as they were)
 function calcAcclimatizedLeggingValue(modifier, itemTier, itemLevel) {
     const gain = Math.min(2.0, 0.2 + itemTier * 0.1 + 0.005 * itemLevel);
     return `+${formatNumber(gain)}% Damage Mitigation (per Stage)`;
@@ -591,8 +592,6 @@ function calcHaloValue(modifier, itemTier, itemLevel) {
 }
 function calcHolyCrossguardValue(modifier, itemTier, itemLevel) {
     const gain = 0.2 + itemTier * 0.1 + 0.005 * itemLevel;
-    // Note: The actual value depends on challenge multiplier, which we can't know here.
-    // Display the base gain per multiplier point.
     return `+${formatNumber(gain)} Final Power (per Challenge Multiplier)`;
 }
 function calcKingSlayerValue(modifier, itemTier, itemLevel) {
@@ -600,7 +599,6 @@ function calcKingSlayerValue(modifier, itemTier, itemLevel) {
     return `+${formatNumber(bonus * 100)}% Damage vs Targeted Elites/Champions`;
 }
 function calcKnightPendantValue(modifier, itemTier, itemLevel) {
-    // Variant selection would be needed here in a full implementation
     return `Start with specific [Knight Weapon] (Variant)`;
 }
 function calcNinjaTabiValue(modifier, itemTier, itemLevel) {
@@ -613,8 +611,6 @@ function calcNobleSlayerValue(modifier, itemTier, itemLevel) {
 }
 function calcSoulJarValue(modifier, itemTier, itemLevel) {
     const gainPerLog = 0.05 + 0.0075 * itemTier + 0.0005 * itemLevel;
-    // The actual value depends on overkill count, which we can't know.
-    // Display the gain per log2 unit.
     return `+${formatNumber(gainPerLog * 100)}% Soul Coin Gain (per log2(Overkills))`;
 }
 function calcSpecializationValue(modifier, itemTier, itemLevel) {
@@ -627,16 +623,14 @@ function calcTowerShieldValue(modifier, itemTier, itemLevel) {
     return `-${formatNumber(reduction * 100)}% One-Shot Protection Threshold`;
 }
 function calcTrainerValue(modifier, itemTier, itemLevel) {
-    // C# code: Mathf.FloorToInt((float) (1.25 + 0.75 * (double) itemTier));
-    // C# code adds (bonusLevel - 1) to the card level gain.
     const bonusLevel = Math.floor(1.25 + 0.75 * itemTier);
     return `First Weapon starts +${formatNumber(bonusLevel -1)} Levels`;
 }
 function calcWeaponFinaleDamageValue(modifier, itemTier, itemLevel) {
     const value = 0.25 + itemTier * 0.5 + itemLevel * 0.05;
-     // Variant selection would be needed here in a full implementation
     return `+${formatNumber(value)} Final Damage to [Weapon] (Variant)`;
 }
+// --- God Stone Formatting ---
 function formatGodStoneLine(value, statName, isPercent = true, isMultiplier = true) {
     let displayValue = value;
     let prefix = "";
@@ -678,6 +672,8 @@ function formatGodStoneLine(value, statName, isPercent = true, isMultiplier = tr
 
     return `${prefix}${formatNumber(displayValue)}${isPercent ? '%' : ''} ${statDisplayName}`;
 }
+// --- God Stone Calculations ---
+// (Keep all calc...StoneValue functions as they were)
 function calcFireStoneValue(modifier, itemTier, itemLevel) {
     const level = equivalentLevel(itemTier, itemLevel, 1, 3);
     const dropFire = 1.05 + 0.05 * level;
@@ -816,31 +812,34 @@ function getModifierEffectText(modifier, itemTier = 1, itemLevel = 1) {
     itemLevel = Number(itemLevel) || 1;
 
     // Use optional chaining
-    if (modifier?.isCustom && typeof window[modifier.calcFunc] === 'function') {
+    // Check for custom calculation function *first*
+    if (modifier?.isCustom && modifier.calcFunc && typeof window[modifier.calcFunc] === 'function') {
         try {
+            // Ensure the function exists on the window object before calling
             return window[modifier.calcFunc](modifier, itemTier, itemLevel);
         } catch (e) {
-            console.error(`Error calculating custom modifier ${modifier.id}:`, e);
+            console.error(`Error calculating custom modifier ${modifier.id} using ${modifier.calcFunc}:`, e);
             return `${modifier.name} (Calculation Error)`;
         }
-    // Use optional chaining
+    // Then check for standard stats
     } else if (modifier?.statName && modifier?.statsApplicationType) {
         return getDisplayTextForStandardStat(modifier, itemTier, itemLevel);
-    // Use optional chaining
+    // Handle "None" main stats
     } else if (modifier?.statName === null && modifier?.type === 'main') {
-         // Handle "None" main stats like Chest_M_Empty
          return `Provides Secondary Slots Only`;
-    } else if (modifier) {
-        return modifier.name; // Fallback to name if no calculation possible
+    // Fallback to name if no calculation possible
+    } else if (modifier?.name) {
+        return modifier.name;
     } else {
-        return ' '; // Return non-breaking space for empty
+        return ' '; // Return non-breaking space for empty/invalid
     }
 }
 
 
 // --- Global Helper ---
 function getModifierById(id) {
-    return MODIFIERS_UPDATED.find(m => m.id === id); // Use the updated list
+    // Use the final processed list
+    return MODIFIERS_UPDATED.find(m => m.id === id);
 }
 
 // No changes needed for getRarityColor / getPositivityColor
@@ -871,14 +870,9 @@ function getPositivityColor(positivity) {
 // This overwrites the initial placeholder 'let MODIFIERS'
 MODIFIERS = MODIFIERS_UPDATED;
 
-// Generate allowedSlots after MODIFIERS is finalized
-// This loop seems redundant as allowedSlots were already generated above (lines 283-341)
-// and assigned to finalModifiers, which was then assigned to MODIFIERS.
-// However, let's keep it but ensure it uses the final MODIFIERS array.
-// Re-evaluating: The first loop (283-341) populates allowedSlots based on relatedItemIds.
-// This second loop seems intended as a fallback or broader assignment,
-// especially for secondaries. Let's refine the logic here.
-
+// Generate allowedSlots fallback (Second Pass - Refined Logic)
+// This loop ensures that mods without relatedItemIds still get some allowedSlots assigned,
+// primarily as a fallback for display/filtering, though runtime logic might be stricter.
 MODIFIERS.forEach(modifier => {
     // If allowedSlots is already populated (from relatedItemIds), skip broader assignment.
     if (modifier.allowedSlots && modifier.allowedSlots.length > 0) {
@@ -891,7 +885,7 @@ MODIFIERS.forEach(modifier => {
         // Fallback for secondaries without specific item links.
         // Allow all slots initially. Filtering during population in script.js will be more accurate.
          SLOTS.forEach(slot => allowed.add(slot.id));
-         // console.warn(`Secondary modifier "${modifier.id}" has no relatedItemIds or existing allowedSlots. Allowing all slots as a fallback.`);
+         // REMOVED console warning for SonarLint S125
     } else if (modifier?.type === 'main' && !modifier.isCustom && modifier.statName) {
          // Fallback for standard main stats not linked via JSON and not already assigned slots
          SLOTS.forEach(slot => allowed.add(slot.id));
@@ -922,3 +916,39 @@ SLOTS.forEach(slot => {
 const RARITY_ORDER = [
     'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Ascended', 'Unique'
 ];
+
+// Make custom calculation functions globally accessible (if not already)
+// This ensures they can be called by name in getModifierEffectText
+// Assign functions directly to the window object
+window.calcAcclimatizedLeggingValue = calcAcclimatizedLeggingValue;
+window.calcBandOfValianceValue = calcBandOfValianceValue;
+window.calcBloodiedTowelValue = calcBloodiedTowelValue;
+window.calcExpertMonocleValue = calcExpertMonocleValue;
+window.calcFancyHatValue = calcFancyHatValue;
+window.calcGoldenPlateValue = calcGoldenPlateValue;
+window.calcGoldenRingValue = calcGoldenRingValue;
+window.calcHaloValue = calcHaloValue;
+window.calcHolyCrossguardValue = calcHolyCrossguardValue;
+window.calcKingSlayerValue = calcKingSlayerValue;
+window.calcKnightPendantValue = calcKnightPendantValue;
+window.calcNinjaTabiValue = calcNinjaTabiValue;
+window.calcNobleSlayerValue = calcNobleSlayerValue;
+window.calcSoulJarValue = calcSoulJarValue;
+window.calcSpecializationValue = calcSpecializationValue;
+window.calcTowerShieldValue = calcTowerShieldValue;
+window.calcTrainerValue = calcTrainerValue;
+window.calcWeaponFinaleDamageValue = calcWeaponFinaleDamageValue;
+window.calcFireStoneValue = calcFireStoneValue;
+window.calcFieryStoneValue = calcFieryStoneValue;
+window.calcWindStoneValue = calcWindStoneValue;
+window.calcGaleStoneValue = calcGaleStoneValue;
+window.calcMoonStoneValue = calcMoonStoneValue;
+window.calcLunarStoneValue = calcLunarStoneValue;
+window.calcSunStoneValue = calcSunStoneValue;
+window.calcSolarStoneValue = calcSolarStoneValue;
+window.calcStelarStoneValue = calcStelarStoneValue;
+window.calcStormStoneValue = calcStormStoneValue;
+// Add any other custom calc functions referenced in MODIFIERS here...
+// Example for M_ mods from JSON that might need custom logic if not standard stats:
+// window.calcBloodUmbrellaValue = calcBloodUmbrellaValue; // If it had custom logic
+// window.calcAdaptive_GreavesValue = calcAdaptive_GreavesValue; // etc.
