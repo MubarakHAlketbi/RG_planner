@@ -8,6 +8,7 @@
     --border-color: #4a4a6a;
     --input-bg: #1f2a47; /* Slightly different for inputs */
     --inactive-opacity: 0.6;
+    --hover-bg: #2a3b5e; /* Background for hovered options */
 
     /* Rarity Colors (approximated from EquipmentUtils) */
     --rarity-common: #c8c8ff; /* Lightened */
@@ -28,6 +29,10 @@
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
 }
 
 body {
@@ -85,58 +90,50 @@ header h1 {
 }
 
 .controls input[type="text"],
-.controls input[type="number"] {
+.controls input[type="number"],
+.controls button { /* Added button styling */
     padding: 8px 12px;
     border: 1px solid var(--border-color);
     background-color: var(--input-bg);
     color: var(--text-color);
     border-radius: 4px;
-    min-width: 100px; /* Adjusted min-width */
-}
-.controls input[type="number"] {
-    width: 80px; /* Specific width for number inputs */
+    font-size: 1em; /* Ensure consistent font size */
 }
 
 .controls button {
-    padding: 8px 15px;
-    background-color: var(--accent-color);
-    color: white;
-    border: none;
-    border-radius: 4px;
+    background-color: var(--secondary-color);
     cursor: pointer;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.2s ease;
 }
 
 .controls button:hover {
-    background-color: #c7304a;
+    background-color: var(--accent-color);
 }
 
-
+/* Planner Grid */
 #planner-container {
     display: grid;
-    /* Adjusted grid for potentially more columns */
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Slightly narrower min for more columns */
-    gap: 20px; /* Slightly reduced gap */
+    /* Adjust columns based on max-width and desired layout */
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 25px;
 }
 
 .equipment-slot {
     background-color: var(--card-bg);
-    border: 1px solid var(--border-color);
+    padding: 20px;
     border-radius: 6px;
-    padding: 15px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    transition: opacity 0.3s ease; /* For inactive state */
+    gap: 15px; /* Space between elements inside a slot */
+    transition: opacity 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
-/* Style for inactive slots */
 .equipment-slot.inactive-slot {
     opacity: var(--inactive-opacity);
-    /* border-color: #666; Maybe change border too */
+    box-shadow: none;
 }
-
 
 .equipment-slot h3 {
     text-align: center;
@@ -146,194 +143,252 @@ header h1 {
     padding-bottom: 10px;
 }
 
-/* Tier and Level Input Styling */
 .tier-level-inputs {
     display: flex;
+    justify-content: space-around; /* Space out tier/level */
     align-items: center;
     gap: 10px;
-    margin-bottom: 10px;
-    justify-content: center; /* Center the inputs */
 }
 
 .tier-level-inputs label {
-    font-weight: bold;
     font-size: 0.9em;
+    margin-right: 5px;
 }
 
 .tier-level-inputs select,
 .tier-level-inputs input[type="number"] {
     padding: 5px 8px;
+    border: 1px solid var(--border-color);
     background-color: var(--input-bg);
     color: var(--text-color);
-    border: 1px solid var(--border-color);
     border-radius: 4px;
-    font-size: 0.9em;
+    width: 60px; /* Fixed width for consistency */
+    text-align: center;
 }
-.tier-level-inputs input[type="number"] {
-    width: 60px; /* Fixed width for level */
+/* Remove spinner buttons for number input */
+.tier-level-inputs input[type=number]::-webkit-outer-spin-button,
+.tier-level-inputs input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
-.tier-level-inputs select {
-     min-width: 50px; /* Width for tier */
+.tier-level-inputs input[type=number] {
+    -moz-appearance: textfield; /* Firefox */
 }
 
-/* Required Level Display */
+
 .required-level-display {
     text-align: center;
-    font-size: 0.95em;
     font-weight: bold;
-    margin-bottom: 15px;
-    color: #ccc; /* Slightly dimmer color */
+    margin-top: 5px;
+    font-size: 0.95em;
 }
+
 .req-level-value {
-    color: var(--accent-color); /* Highlight the value */
+    color: var(--accent-color); /* Default color */
     font-size: 1.1em;
 }
 
-.modifier-group {
-    margin-bottom: 5px; /* Reduced margin */
+/* Modifier Group Styling */
+.modifier-selection-group,
+.variant-selection-group { /* Apply to variant group too */
+    display: flex;
+    flex-direction: column;
+    gap: 5px; /* Space between effect display and select */
 }
 
-.modifier-group label,
-.variant-selection-group label { /* Include variant label */
-    display: block;
-    font-weight: bold;
-    margin-bottom: 5px;
-    font-size: 0.95em;
-}
-/* Specific label styling for secondary groups */
-.secondary-modifiers-container > label {
-     font-size: 1em;
-     color: #bbb;
-     margin-bottom: 8px;
-     padding-bottom: 5px;
-     border-bottom: 1px solid var(--border-color);
-}
-
-
-.modifier-group select,
-.modifier-group .selected-modifier,
-.variant-selection-group select { /* Include variant select */
-    width: 100%;
-    padding: 8px 10px;
-    background-color: var(--input-bg); /* Consistent input background */
-    color: var(--text-color);
-    border: 2px solid var(--border-color); /* Default border */
-    border-radius: 4px;
-    font-size: 0.9em;
-    cursor: pointer;
-    transition: border-color 0.3s ease; /* Smooth border transition */
-}
-
-.modifier-group select:focus,
-.variant-selection-group select:focus { /* Include variant select */
-    outline: none;
-    border-color: var(--accent-color);
-}
-
-/* Modifier Effect Display */
 .modifier-effect-display {
-    font-size: 0.85em;
-    color: #b0b0d0; /* Lighter text for effect */
-    margin-top: 5px; /* Space above select */
-    padding: 5px;
-    background-color: rgba(0,0,0,0.1); /* Subtle background */
-    border-radius: 3px;
-    min-height: 2.5em; /* Ensure space even when empty */
-    line-height: 1.4; /* Adjust line spacing */
-}
-.modifier-effect-display br { /* Ensure <br> works for multi-line effects */
-    display: block;
-    content: "";
-    margin-top: 0.3em;
-}
-
-/* Variant Selection Styling */
-.variant-selection-container {
-    margin-top: 10px; /* Space above variant selector */
-    padding-top: 10px;
-    border-top: 1px dashed var(--border-color); /* Separator */
-}
-
-.variant-selection-group {
-    margin-bottom: 10px;
-}
-
-.variant-selection-group label {
-    color: var(--accent-color); /* Make variant label stand out */
     font-size: 0.9em;
+    color: #c0c0c0; /* Slightly dimmer text for effect */
+    padding: 5px;
+    background-color: rgba(0, 0, 0, 0.1); /* Subtle background */
+    border-radius: 3px;
+    min-height: 2.5em; /* Ensure space even when empty (adjust as needed) */
+    line-height: 1.4;
+    border: 1px dashed rgba(74, 74, 106, 0.5); /* Subtle border */
+    display: flex; /* Allow vertical centering if needed */
+    align-items: center; /* Center text vertically */
 }
-
-.variant-modifier-select {
-    border-color: var(--secondary-color); /* Different border for variant select */
+.modifier-effect-display:empty::before {
+    content: '\00a0'; /* Non-breaking space for empty state */
 }
-
-
-/* Style options based on rarity */
-.modifier-option.rarity-common { color: var(--rarity-common); }
-.modifier-option.rarity-uncommon { color: var(--rarity-uncommon); }
-.modifier-option.rarity-rare { color: var(--rarity-rare); }
-.modifier-option.rarity-epic { color: var(--rarity-epic); }
-.modifier-option.rarity-legendary { color: var(--rarity-legendary); }
-.modifier-option.rarity-mythical { color: var(--rarity-mythical); }
-.modifier-option.rarity-ascended { color: var(--rarity-ascended); }
-.modifier-option.rarity-unique { color: var(--rarity-unique); font-weight: bold; }
-
-/* Style selected value based on rarity (Using border - Improvement 1) */
-.main-modifier-select.selected-rarity-common,
-.secondary-modifier-select.selected-rarity-common { border-color: var(--rarity-common) !important; } /* Use important to override default */
-.main-modifier-select.selected-rarity-uncommon,
-.secondary-modifier-select.selected-rarity-uncommon { border-color: var(--rarity-uncommon) !important; }
-.main-modifier-select.selected-rarity-rare,
-.secondary-modifier-select.selected-rarity-rare { border-color: var(--rarity-rare) !important; }
-.main-modifier-select.selected-rarity-epic,
-.secondary-modifier-select.selected-rarity-epic { border-color: var(--rarity-epic) !important; }
-.main-modifier-select.selected-rarity-legendary,
-.secondary-modifier-select.selected-rarity-legendary { border-color: var(--rarity-legendary) !important; }
-.main-modifier-select.selected-rarity-mythical,
-.secondary-modifier-select.selected-rarity-mythical { border-color: var(--rarity-mythical) !important; }
-.main-modifier-select.selected-rarity-ascended,
-.secondary-modifier-select.selected-rarity-ascended { border-color: var(--rarity-ascended) !important; }
-.main-modifier-select.selected-rarity-unique,
-.secondary-modifier-select.selected-rarity-unique { border-color: var(--rarity-unique) !important; font-weight: bold; }
-
-/* Optional: Style secondary based on positivity (subtle indicator) */
-/* Removed empty rulesets */
 
 
 .secondary-modifiers-container {
+    border-top: 1px solid var(--border-color);
+    padding-top: 15px;
+    margin-top: 10px;
     display: flex;
     flex-direction: column;
-    gap: 10px; /* Spacing between secondary slots */
-    margin-top: 10px; /* Space above secondary section */
+    gap: 10px;
 }
 
-.secondary-modifier-slot {
-    display: flex;
-    flex-direction: column;
-}
-
-
-/* Tooltip Styles (Basic) */
-.modifier-option[title],
-select option[title],
-select[title] { /* Add title to select itself */
-    cursor: help;
-}
-
-/* Optgroup Styling */
-optgroup {
+.secondary-modifiers-container > label { /* Style the "Secondary Positive/Negative" label */
     font-weight: bold;
-    font-style: italic;
-    color: var(--accent-color); /* Make rarity group labels stand out */
-    background-color: rgba(0,0,0, 0.2); /* Slightly darker background for group */
-    padding: 2px 5px;
-    margin-top: 5px;
-}
-/* Hide options that don't match filter */
-.hidden-option {
-    display: none !important;
+    color: #ccc;
+    font-size: 0.9em;
+    margin-bottom: 5px;
 }
 
+/* --- Custom Select Styles --- */
+
+/* Hide the original native select */
+.hidden-native-select {
+    display: none !important;
+    visibility: hidden;
+    position: absolute;
+    left: -9999px;
+    top: -9999px;
+}
+
+.custom-select-container {
+    position: relative;
+    width: 100%; /* Take full width of its container */
+    max-width: 100%; /* Prevent overflow */
+}
+
+.custom-select-value {
+    padding: 8px 30px 8px 12px; /* Space for arrow */
+    border: 1px solid var(--border-color);
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border-radius: 4px;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative; /* For arrow positioning */
+    transition: border-color 0.2s ease;
+    min-height: 38px; /* Match input height */
+    display: flex;
+    align-items: center;
+    font-size: 0.9em; /* Slightly smaller font for select */
+}
+
+/* Add dropdown arrow */
+.custom-select-value::after {
+    content: '▼';
+    font-size: 0.7em;
+    color: var(--text-color);
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none; /* Don't interfere with clicks */
+    transition: transform 0.2s ease;
+}
+
+.custom-select-container.active .custom-select-value::after {
+    transform: translateY(-50%) rotate(180deg); /* Flip arrow when open */
+}
+
+.custom-select-options {
+    display: none; /* Hidden by default */
+    position: absolute;
+    top: 100%; /* Position below the value display */
+    left: 0;
+    right: 0;
+    background-color: var(--card-bg); /* Dark background for dropdown */
+    border: 1px solid var(--border-color);
+    border-top: none; /* Avoid double border */
+    border-radius: 0 0 4px 4px;
+    max-height: 250px; /* Limit height and enable scrolling */
+    overflow-y: auto;
+    z-index: 1000; /* Ensure it appears above other content */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.custom-select-container.active .custom-select-options {
+    display: block; /* Show when active */
+}
+
+.custom-select-option {
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    border-bottom: 1px solid var(--border-color); /* Separator lines */
+    font-size: 0.9em;
+    line-height: 1.4;
+    color: var(--text-color); /* Default text color */
+}
+.custom-select-option:last-child {
+    border-bottom: none;
+}
+
+.custom-select-option:hover {
+    background-color: var(--hover-bg); /* Hover background */
+}
+
+.custom-select-option.default-option {
+    color: #aaa; /* Dimmer color for default */
+    font-style: italic;
+}
+
+/* Rarity/Positivity styling within options */
+.custom-select-option.rarity-common { color: var(--rarity-common); }
+.custom-select-option.rarity-uncommon { color: var(--rarity-uncommon); }
+.custom-select-option.rarity-rare { color: var(--rarity-rare); }
+.custom-select-option.rarity-epic { color: var(--rarity-epic); }
+.custom-select-option.rarity-legendary { color: var(--rarity-legendary); }
+.custom-select-option.rarity-mythical { color: var(--rarity-mythical); }
+.custom-select-option.rarity-ascended { color: var(--rarity-ascended); }
+.custom-select-option.rarity-unique { color: var(--rarity-unique); }
+
+/* Apply positivity color subtly, maybe background or border? */
+/* Example: Left border color for positivity */
+.custom-select-option.positivity-positive {
+    border-left: 3px solid var(--positive-color);
+    padding-left: 9px; /* Adjust padding */
+}
+.custom-select-option.positivity-negative {
+    border-left: 3px solid var(--negative-color);
+    padding-left: 9px; /* Adjust padding */
+}
+
+/* Styling for the selected value display based on rarity/positivity */
+.custom-select-value.selected-rarity-common { border-color: var(--rarity-common); }
+.custom-select-value.selected-rarity-uncommon { border-color: var(--rarity-uncommon); }
+.custom-select-value.selected-rarity-rare { border-color: var(--rarity-rare); }
+.custom-select-value.selected-rarity-epic { border-color: var(--rarity-epic); }
+.custom-select-value.selected-rarity-legendary { border-color: var(--rarity-legendary); }
+.custom-select-value.selected-rarity-mythical { border-color: var(--rarity-mythical); }
+.custom-select-value.selected-rarity-ascended { border-color: var(--rarity-ascended); }
+.custom-select-value.selected-rarity-unique { border-color: var(--rarity-unique); }
+
+/* Add subtle indicator for positivity on selected value? Maybe text color? */
+.custom-select-value.selected-positivity-positive { /* color: var(--positive-color); */ }
+.custom-select-value.selected-positivity-negative { /* color: var(--negative-color); */ }
+
+
+/* Filtering */
+.custom-select-option.hidden-option {
+    display: none;
+}
+
+/* Variant Selector Styling (Using standard select for now) */
+.variant-selection-container {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border-color);
+}
+.variant-selection-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+    font-weight: bold;
+}
+.variant-modifier-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+
+/* Footer */
 footer {
     text-align: center;
     margin-top: 30px;
@@ -341,4 +396,15 @@ footer {
     border-top: 1px solid var(--border-color);
     font-size: 0.85em;
     color: #aaa;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    #planner-container {
+        grid-template-columns: 1fr; /* Stack slots on smaller screens */
+    }
+    .controls {
+        flex-direction: column;
+        gap: 10px;
+    }
 }

@@ -2,10 +2,10 @@
  * Rogue Genesia Equipment Planner Script
  *
  * Changes:
- * - Added variant selection UI and logic for applicable modifiers (Issue #4).
- * - Passing selected variant ID to calculation/display functions.
- * - Added placeholder logic for populating variant options (needs specific implementation).
- * - Updated handleClearAll to reset variant selectors.
+ * - Implemented custom dropdown component to replace native <select> for modifiers.
+ * - Addresses styling inconsistencies, HTML rendering in options, and width issues.
+ * - Updated event handlers and population logic for custom dropdowns.
+ * - Ensured effect display area is correctly positioned and populated.
  */
 document.addEventListener('DOMContentLoaded', () => {
     const plannerContainer = document.getElementById('planner-container');
@@ -22,12 +22,20 @@ document.addEventListener('DOMContentLoaded', () => {
         SLOTS.forEach(slot => {
             const slotElement = createSlotElement(slot);
             plannerContainer.appendChild(slotElement);
-            // Initial calculation after element is created and added
-            updateSlotCalculations(slotElement);
         });
+
+        // Initialize custom selects AFTER initial structure is built
+        initCustomSelects();
+
+        // Initial calculations after elements AND custom selects are ready
+        document.querySelectorAll('.equipment-slot').forEach(updateSlotCalculations);
+
+        // Add global event listeners
         filterInput.addEventListener('input', handleFilterChange);
         clearAllButton.addEventListener('click', handleClearAll);
         playerSoulLevelInput.addEventListener('input', updateAllActiveStates);
+        document.addEventListener('click', handleDocumentClick); // For closing dropdowns
+
         handleFilterChange(); // Apply initial filter
         updateAllActiveStates(); // Initial check
     }
@@ -42,10 +50,10 @@ document.addEventListener('DOMContentLoaded', () => {
         title.textContent = slot.name;
         slotDiv.appendChild(title);
 
-        // Tier and Level Inputs
+        // Tier and Level Inputs (No changes needed here)
         const tierLevelDiv = document.createElement('div');
         tierLevelDiv.classList.add('tier-level-inputs');
-
+        // ... (tier/level select and input creation remains the same) ...
         const tierLabel = document.createElement('label');
         tierLabel.setAttribute('for', `${slot.id}-tier`);
         tierLabel.textContent = 'Tier:';
@@ -81,6 +89,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         slotDiv.appendChild(tierLevelDiv);
 
+
         // Required Level Display
         const reqLevelDiv = document.createElement('div');
         reqLevelDiv.classList.add('required-level-display');
@@ -115,7 +124,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return slotDiv;
     }
 
-     function createModifierGroup(slot, type, positivity = null, index = 0) {
+    // Modified to create placeholder for custom select
+    function createModifierGroup(slot, type, positivity = null, index = 0) {
         const groupDiv = document.createElement('div');
         groupDiv.classList.add('modifier-selection-group');
         if (type === 'secondary') {
@@ -124,15 +134,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const selectId = `${slot.id}-${type}-${positivity ? positivity + '-' : ''}${index}`;
 
-        const select = document.createElement('select');
-        select.id = selectId;
-        select.dataset.modifierType = type;
-        if (positivity) select.dataset.positivity = positivity;
-        select.classList.add(type === 'main' ? 'main-modifier-select' : 'secondary-modifier-select');
+        // 1. Create the hidden native select (for data storage and initial population)
+        const nativeSelect = document.createElement('select');
+        nativeSelect.id = selectId;
+        nativeSelect.dataset.modifierType = type;
+        if (positivity) nativeSelect.dataset.positivity = positivity;
+        nativeSelect.classList.add('native-modifier-select', 'hidden-native-select'); // Hide it
 
         const defaultOption = document.createElement('option');
         defaultOption.value = '';
-        // Extracted nested ternary for SonarLint S3358
         let selectTypeText;
         if (type === 'main') {
             selectTypeText = 'Main';
@@ -140,36 +150,57 @@ document.addEventListener('DOMContentLoaded', () => {
             selectTypeText = positivity === 'positive' ? 'Positive' : 'Negative';
         }
         defaultOption.textContent = `--- Select ${selectTypeText} ---`;
-        select.appendChild(defaultOption);
+        nativeSelect.appendChild(defaultOption);
 
-        // Modifier effect display area
+        // Populate the hidden select (options will be used by custom select init)
+        populateNativeModifierOptions(nativeSelect, slot, type, positivity);
+        // Add change listener to the NATIVE select to trigger updates when custom select changes its value
+        nativeSelect.addEventListener('change', handleSelectChange);
+
+        // 2. Create the Modifier Effect Display Area (ABOVE the custom select)
         const effectDisplay = document.createElement('div');
         effectDisplay.classList.add('modifier-effect-display');
-        effectDisplay.innerHTML = ' '; // Placeholder
-        groupDiv.appendChild(effectDisplay); // Display above select
+        effectDisplay.innerHTML = ' '; // Use non-breaking space to ensure height
+        groupDiv.appendChild(effectDisplay);
 
-        populateModifierOptions(select, slot, type, positivity);
-        select.addEventListener('change', handleSelectChange);
-        groupDiv.appendChild(select); // Select below display
+        // 3. Create the Custom Select Placeholder Structure
+        const customSelectContainer = document.createElement('div');
+        customSelectContainer.classList.add('custom-select-container');
+        customSelectContainer.dataset.selectId = selectId; // Link to the native select
+
+        const customSelectValue = document.createElement('div');
+        customSelectValue.classList.add('custom-select-value');
+        customSelectValue.textContent = defaultOption.textContent; // Set initial text
+        customSelectValue.tabIndex = 0; // Make it focusable
+
+        const customSelectOptions = document.createElement('div');
+        customSelectOptions.classList.add('custom-select-options');
+        // Options will be added during initCustomSelects
+
+        customSelectContainer.appendChild(customSelectValue);
+        customSelectContainer.appendChild(customSelectOptions);
+
+        // Add the custom select structure AND the hidden native select to the group
+        groupDiv.appendChild(customSelectContainer);
+        groupDiv.appendChild(nativeSelect); // Keep hidden select in DOM
 
         return groupDiv;
     }
 
-    // --- Data Population ---
-    function populateModifierOptions(selectElement, slot, type, positivity) {
-        const currentFilter = filterInput.value.toLowerCase();
-        let addedModifiers = []; // Keep track of modifiers to group them
+    // --- Data Population (for hidden native select) ---
+    function populateNativeModifierOptions(nativeSelectElement, slot, type, positivity) {
+        // This function is similar to the old populateModifierOptions,
+        // but it only populates the hidden NATIVE select.
+        // The custom select options are built later in initCustomSelects.
+
+        let addedModifiers = []; // Keep track of modifiers
 
         // Filter allowed modifiers first
         MODIFIERS.forEach(modifier => {
             let isAllowed = false;
             if (type === 'main') {
-                // Main mods must be 'main' or 'CustomMain' type AND allowed in this specific slot
                 isAllowed = (modifier.type === 'main' || modifier.modifierType === 'CustomMain') && modifier.allowedSlots.includes(slot.id);
             } else { // secondary
-                // Secondary mods must be 'secondary' or 'CustomSecondary' type AND match positivity
-                // Filtering by allowedSlots for secondaries happens dynamically based on main mod.
-                // Here, we just check type and positivity.
                 isAllowed = (modifier.type === 'secondary' || modifier.modifierType === 'CustomSecondary') && modifier.positivity === positivity;
             }
             if (isAllowed) {
@@ -177,104 +208,171 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Sort modifiers primarily by rarity order, then by name
+        // Sort modifiers
         addedModifiers.sort((a, b) => {
-            // Ensure RARITY_ORDER is defined (should be in data.js)
             const rarityA = RARITY_ORDER.indexOf(a.rarity);
             const rarityB = RARITY_ORDER.indexOf(b.rarity);
-            if (rarityA !== rarityB) {
-                return rarityA - rarityB; // Sort by rarity index
-            }
-            return (a.displayName || a.name).localeCompare(b.displayName || b.name); // Secondary sort by display name
+            if (rarityA !== rarityB) return rarityA - rarityB;
+            return (a.displayName || a.name).localeCompare(b.displayName || b.name);
         });
 
         // Clear existing options except the default
-        while (selectElement.options.length > 1) {
-            selectElement.remove(1);
+        while (nativeSelectElement.options.length > 1) {
+            nativeSelectElement.remove(1);
         }
 
-
-        // Group by Rarity using <optgroup>
+        // Group by Rarity using <optgroup> in the hidden select
         let currentOptgroup = null;
         let currentRarity = null;
 
         addedModifiers.forEach(modifier => {
-            // Create new optgroup if rarity changes
             if (modifier.rarity !== currentRarity) {
                 currentRarity = modifier.rarity;
                 currentOptgroup = document.createElement('optgroup');
                 currentOptgroup.label = `${currentRarity}`;
-                selectElement.appendChild(currentOptgroup);
+                nativeSelectElement.appendChild(currentOptgroup);
             }
 
             const option = document.createElement('option');
             option.value = modifier.id;
 
-            // Use default tier/level for display text in the dropdown list
-            // Pass null for variant initially for the list display
-            const baseDisplayText = getModifierEffectText(modifier, DEFAULT_TIER, DEFAULT_LEVEL, null);
-            const uniqueIndicator = modifier.rarity === 'Unique' ? '⭐ ' : '';
-            // Ensure baseDisplayText is a string before using includes
-            const textContent = uniqueIndicator + (baseDisplayText || modifier.displayName || ''); // Fallback display using displayName
-            option.textContent = textContent;
-
-
-            option.title = modifier.description || 'No description available.'; // Tooltip
-            option.classList.add('modifier-option', `rarity-${modifier.rarity.toLowerCase()}`);
+            // Store necessary data on the native option for the custom builder
             option.dataset.rarity = modifier.rarity;
             option.dataset.positivity = modifier.positivity;
-            option.dataset.name = (modifier.displayName || modifier.name).toLowerCase(); // Use displayName for filter check
-            // Store effect text in lowercase for filtering
-            option.dataset.effectText = (baseDisplayText || '').toLowerCase();
+            option.dataset.name = (modifier.displayName || modifier.name).toLowerCase();
+            option.dataset.displayName = modifier.displayName || modifier.name; // Store display name
+            option.dataset.description = modifier.description || 'No description available.';
+            option.dataset.hasVariants = modifier.hasVariants || false; // Store variant info
 
-            // Apply filtering (visibility handled by handleFilterChange)
-            option.classList.toggle('hidden-option', !matchesFilter(option, currentFilter));
-
+            // Calculate base display text (used for filtering and potentially initial display)
+            const baseDisplayText = getModifierEffectText(modifier, DEFAULT_TIER, DEFAULT_LEVEL, null);
+            option.dataset.effectText = (baseDisplayText || '').toLowerCase(); // Store effect text for filtering
+            const uniqueIndicator = modifier.rarity === 'Unique' ? '⭐ ' : '';
+            option.textContent = uniqueIndicator + (baseDisplayText || modifier.displayName || ''); // Text for native option (mostly for debug)
 
             if (currentOptgroup) {
-                 currentOptgroup.appendChild(option);
+                currentOptgroup.appendChild(option);
             } else {
-                 // Fallback if optgroup wasn't created (shouldn't happen with sorted list)
-                 selectElement.appendChild(option);
+                nativeSelectElement.appendChild(option);
             }
         });
-
-         // Hide optgroups with no visible options
-         updateOptgroupVisibility(selectElement);
     }
 
-    // Helper to check if an option matches the filter
-    function matchesFilter(option, filterValue) {
-        if (!option || filterValue === '') return true; // Don't filter if no value
-        const name = option.dataset.name || '';
-        const effectText = option.dataset.effectText || '';
-        // Check name and effect text
-        return name.includes(filterValue) || effectText.includes(filterValue);
-    }
+    // --- Custom Select Initialization ---
+    function initCustomSelects() {
+        document.querySelectorAll('.custom-select-container').forEach(container => {
+            const nativeSelect = document.getElementById(container.dataset.selectId);
+            const valueDisplay = container.querySelector('.custom-select-value');
+            const optionsContainer = container.querySelector('.custom-select-options');
+            if (!nativeSelect || !valueDisplay || !optionsContainer) return;
 
-    // Helper to update visibility of options within a select based on filter
-    function updateOptionVisibility(selectElement, filterValue) {
-        const options = selectElement.querySelectorAll('option:not([value=""])'); // Exclude default option
-        options.forEach(option => {
-            option.classList.toggle('hidden-option', !matchesFilter(option, filterValue));
+            optionsContainer.innerHTML = ''; // Clear any previous options
+
+            // Create custom options from the native select's options
+            Array.from(nativeSelect.options).forEach(nativeOption => {
+                const customOption = document.createElement('div');
+                customOption.classList.add('custom-select-option');
+                customOption.dataset.value = nativeOption.value;
+
+                // Copy data attributes needed for styling and filtering
+                for (const dataAttr in nativeOption.dataset) {
+                    customOption.dataset[dataAttr] = nativeOption.dataset[dataAttr];
+                }
+                // Add rarity/positivity classes for styling
+                if (nativeOption.dataset.rarity) {
+                    customOption.classList.add(`rarity-${nativeOption.dataset.rarity.toLowerCase()}`);
+                }
+                 if (nativeOption.dataset.positivity) {
+                    customOption.classList.add(`positivity-${nativeOption.dataset.positivity.toLowerCase()}`);
+                }
+
+
+                // Set innerHTML to allow HTML rendering (e.g., for <br>)
+                // Use the stored display name or effect text
+                const uniqueIndicator = nativeOption.dataset.rarity === 'Unique' ? '⭐ ' : '';
+                const textContent = uniqueIndicator + (nativeOption.dataset.effectText && nativeOption.value ? nativeOption.dataset.effectText.replace(/<br>/gi, '\n') : nativeOption.dataset.displayName || nativeOption.textContent); // Use effect text if available, else display name. Replace <br> for display.
+                // For the actual display, we might want the raw effect text with HTML
+                const rawEffectHtml = nativeOption.value ? getModifierEffectText(getModifierById(nativeOption.value), DEFAULT_TIER, DEFAULT_LEVEL, null) : (nativeOption.dataset.displayName || nativeOption.textContent);
+                customOption.innerHTML = uniqueIndicator + (rawEffectHtml || ' '); // Use innerHTML here
+
+                customOption.title = nativeOption.dataset.description || ''; // Set tooltip
+
+                if (nativeOption.value === '') {
+                    customOption.classList.add('default-option');
+                }
+
+                // Add click listener to each option
+                customOption.addEventListener('click', () => {
+                    // Update the hidden native select's value
+                    nativeSelect.value = customOption.dataset.value;
+
+                    // Update the value display
+                    valueDisplay.innerHTML = customOption.innerHTML; // Copy HTML content
+                    valueDisplay.dataset.value = customOption.dataset.value; // Store value on display too
+                    // Update styling of the value display based on selected option
+                    valueDisplay.className = 'custom-select-value'; // Reset classes
+                    if (customOption.dataset.rarity) {
+                         valueDisplay.classList.add(`selected-rarity-${customOption.dataset.rarity.toLowerCase()}`);
+                         valueDisplay.style.borderColor = getRarityColor(customOption.dataset.rarity);
+                    } else {
+                         valueDisplay.style.borderColor = ''; // Reset border color
+                    }
+                     if (customOption.dataset.positivity) {
+                         valueDisplay.classList.add(`selected-positivity-${customOption.dataset.positivity.toLowerCase()}`);
+                    }
+
+
+                    // Close the dropdown
+                    container.classList.remove('active');
+
+                    // Manually trigger the 'change' event on the hidden native select
+                    const changeEvent = new Event('change', { bubbles: true });
+                    nativeSelect.dispatchEvent(changeEvent);
+                });
+
+                optionsContainer.appendChild(customOption);
+            });
+
+            // Add click listener to the value display to toggle dropdown
+            valueDisplay.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent document click handler from closing it immediately
+                closeAllDropdowns(container); // Close others before opening this one
+                container.classList.toggle('active');
+            });
+             valueDisplay.addEventListener('keydown', (e) => {
+                 if (e.key === 'Enter' || e.key === ' ') {
+                     e.preventDefault();
+                     e.stopPropagation();
+                     closeAllDropdowns(container);
+                     container.classList.toggle('active');
+                 }
+             });
         });
     }
 
-    // Helper to update visibility of optgroups
-    function updateOptgroupVisibility(selectElement) {
-        const optgroups = selectElement.querySelectorAll('optgroup');
-        optgroups.forEach(optgroup => {
-            const visibleOptions = optgroup.querySelectorAll('option:not(.hidden-option)');
-            // Hide optgroup if it contains no visible options
-            optgroup.style.display = visibleOptions.length > 0 ? '' : 'none';
+    // Helper to close all active custom dropdowns, optionally excluding one
+    function closeAllDropdowns(excludeContainer = null) {
+        document.querySelectorAll('.custom-select-container.active').forEach(activeContainer => {
+            if (activeContainer !== excludeContainer) {
+                activeContainer.classList.remove('active');
+            }
         });
     }
 
+    // Handle clicks outside dropdowns
+    function handleDocumentClick(event) {
+        // If the click is not inside an active custom select container, close all dropdowns
+        if (!event.target.closest('.custom-select-container.active')) {
+            closeAllDropdowns();
+        }
+    }
 
-     // --- Event Handlers ---
+
+    // --- Event Handlers ---
     function handleSelectChange(event) {
-        const select = event.target;
-        const slotElement = select.closest('.equipment-slot');
+        // This event is now triggered by the NATIVE select (either directly or via custom select interaction)
+        const nativeSelect = event.target;
+        const slotElement = nativeSelect.closest('.equipment-slot');
         if (slotElement) {
             updateSlotCalculations(slotElement);
         }
@@ -296,36 +394,78 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Refactored to reduce nesting (Sonar S2004)
+    // Updated to filter custom options
     function handleFilterChange() {
         const filterValue = filterInput.value.toLowerCase();
-        document.querySelectorAll('.equipment-slot').forEach(slotElement => {
-            // Include variant selects in the filter update
-            const selects = slotElement.querySelectorAll('select.main-modifier-select, select.secondary-modifier-select, select.variant-modifier-select');
-            selects.forEach(select => {
-                updateOptionVisibility(select, filterValue); // Update individual option visibility
-                updateOptgroupVisibility(select); // Update optgroup visibility based on contained options
+        document.querySelectorAll('.custom-select-options').forEach(optionsContainer => {
+            let hasVisibleOption = false;
+            optionsContainer.querySelectorAll('.custom-select-option').forEach(option => {
+                const isDefault = option.classList.contains('default-option');
+                const matches = isDefault || matchesFilter(option, filterValue); // Always show default or if matches
+                option.classList.toggle('hidden-option', !matches);
+                if (matches && !isDefault) {
+                    hasVisibleOption = true;
+                }
             });
+             // Optionally hide the whole container if only the default is visible?
+             // optionsContainer.closest('.custom-select-container').style.display = hasVisibleOption ? '' : 'none'; // Example
         });
+    }
+
+    // Helper to check if a custom option matches the filter
+    function matchesFilter(option, filterValue) {
+        if (!option || filterValue === '') return true;
+        const name = option.dataset.name || '';
+        const effectText = option.dataset.effectText || ''; // Use stored effect text
+        // Check name and effect text
+        return name.includes(filterValue) || effectText.includes(filterValue);
     }
 
 
      function handleClearAll() {
-        const allSelects = document.querySelectorAll('select.main-modifier-select, select.secondary-modifier-select, select.variant-modifier-select'); // Include variant selects
+        // Reset native selects (which updates custom selects via event trigger)
+        const allNativeSelects = document.querySelectorAll('select.native-modifier-select');
+        allNativeSelects.forEach(select => {
+            if (select.value !== '') {
+                select.value = '';
+                // Manually trigger change to update custom display and recalculate
+                const changeEvent = new Event('change', { bubbles: true });
+                select.dispatchEvent(changeEvent);
+            }
+        });
+
+        // Reset Tier/Level
         const allTiers = document.querySelectorAll('select.item-tier-select');
         const allLevels = document.querySelectorAll('input.item-level-input');
-
-        allSelects.forEach(select => {
-            select.value = ''; // Reset selection
-        });
         allTiers.forEach(select => select.value = DEFAULT_TIER);
         allLevels.forEach(input => input.value = DEFAULT_LEVEL);
 
-        // Recalculate everything AFTER resetting all values
-        document.querySelectorAll('.equipment-slot').forEach(updateSlotCalculations);
+        // Clear variant selectors explicitly if they exist
+         document.querySelectorAll('.variant-selection-container').forEach(container => {
+             const variantSelect = container.querySelector('select.variant-modifier-select');
+             if (variantSelect && variantSelect.value !== '') {
+                 variantSelect.value = '';
+                 // Trigger change on the main modifier's native select to force full recalc
+                 const mainSelectId = container.closest('.equipment-slot')?.querySelector('.main-modifier-select')?.id;
+                 if (mainSelectId) {
+                     const mainNativeSelect = document.getElementById(mainSelectId);
+                     if(mainNativeSelect) {
+                         const changeEvent = new Event('change', { bubbles: true });
+                         mainNativeSelect.dispatchEvent(changeEvent);
+                     }
+                 }
+             }
+             container.style.display = 'none'; // Hide variant container
+             container.innerHTML = ''; // Clear content
+         });
+
+
+        // Recalculate everything AFTER resetting values (should be handled by change events)
+        // document.querySelectorAll('.equipment-slot').forEach(updateSlotCalculations); // Might be redundant if change events work
 
         filterInput.value = '';
         handleFilterChange(); // Re-apply empty filter to show all options again
+        updateAllActiveStates(); // Update active states
     }
 
     // --- Calculation & Update Logic ---
@@ -334,26 +474,25 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateSecondarySlots(slotElement, positiveCount, negativeCount) {
         const slotId = slotElement.dataset.slotId;
         const slot = SLOTS.find(s => s.id === slotId);
-        if (!slot) return; // Should not happen
+        if (!slot) return;
 
         const positiveContainer = slotElement.querySelector('.positive-secondary-container');
         const negativeContainer = slotElement.querySelector('.negative-secondary-container');
-        if (!positiveContainer || !negativeContainer) return; // Safety check
+        if (!positiveContainer || !negativeContainer) return;
 
-        // Update labels
         positiveContainer.querySelector('label').textContent = `Secondary Positive (${positiveCount} max)`;
         negativeContainer.querySelector('label').textContent = `Secondary Negative (${negativeCount} max)`;
 
-        // --- Preserve selected values ---
+        // Preserve selected values from the hidden NATIVE selects
         const preservedValues = { positive: [], negative: [] };
-        positiveContainer.querySelectorAll('select.secondary-modifier-select').forEach((select, index) => {
-            if (index < positiveCount) preservedValues.positive[index] = select.value; // Only preserve if slot still exists
+        positiveContainer.querySelectorAll('select.native-modifier-select').forEach((select, index) => {
+            if (index < positiveCount) preservedValues.positive[index] = select.value;
         });
-        negativeContainer.querySelectorAll('select.secondary-modifier-select').forEach((select, index) => {
-            if (index < negativeCount) preservedValues.negative[index] = select.value; // Only preserve if slot still exists
+        negativeContainer.querySelectorAll('select.native-modifier-select').forEach((select, index) => {
+            if (index < negativeCount) preservedValues.negative[index] = select.value;
         });
 
-        // Clear existing secondary slots (excluding the label)
+        // Clear existing secondary slots (groups containing custom select + hidden native)
         positiveContainer.querySelectorAll('.modifier-selection-group').forEach(el => el.remove());
         negativeContainer.querySelectorAll('.modifier-selection-group').forEach(el => el.remove());
 
@@ -361,10 +500,11 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < positiveCount; i++) {
             const group = createModifierGroup(slot, 'secondary', 'positive', i);
             positiveContainer.appendChild(group);
-            // Restore value if it existed
-            const select = group.querySelector('select');
-            if (select && preservedValues.positive[i]) {
-                select.value = preservedValues.positive[i];
+            // Restore value if it existed (set on the hidden native select)
+            const nativeSelect = group.querySelector('select.native-modifier-select');
+            if (nativeSelect && preservedValues.positive[i]) {
+                nativeSelect.value = preservedValues.positive[i];
+                // Note: Custom select display update happens in initCustomSelects or updateSlotCalculations
             }
         }
 
@@ -372,101 +512,106 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < negativeCount; i++) {
             const group = createModifierGroup(slot, 'secondary', 'negative', i);
             negativeContainer.appendChild(group);
-            // Restore value if it existed
-            const select = group.querySelector('select');
-            if (select && preservedValues.negative[i]) {
-                select.value = preservedValues.negative[i];
+            const nativeSelect = group.querySelector('select.native-modifier-select');
+            if (nativeSelect && preservedValues.negative[i]) {
+                nativeSelect.value = preservedValues.negative[i];
             }
         }
-         handleFilterChange(); // Re-apply filter to newly added selects
+
+        // Re-initialize custom selects for the newly added slots
+        initCustomSelects();
+        handleFilterChange(); // Re-apply filter
     }
 
-    // --- Variant Selection Logic (Issue #4) ---
+    // --- Variant Selection Logic (Issue #4 - Adapted for Custom Selects) ---
 
-    // Gets possible variants based on modifier ID
-    // TODO: This needs actual implementation based on C# GetVariantsList logic
+    // Gets possible variants based on modifier ID (No change needed here)
     function getPossibleVariants(modifierId) {
         const modifier = getModifierById(modifierId);
         if (!modifier || !modifier.hasVariants) {
             return [];
         }
-
-        // Placeholder logic - Replace with actual implementation
         console.log(`Fetching variants for ${modifierId}`);
         if (modifierId === 'M_KnightPendant') {
-            // Simulate fetching Knight weapons (replace with actual filtering of MODIFIERS or a dedicated weapon list)
-            return [
-                { id: 'Weapon_Sword', name: 'Sword' },
-                { id: 'Weapon_Axe', name: 'Axe' },
-                { id: 'Weapon_Bow', name: 'Bow' }
-            ];
+            return [ { id: 'Weapon_Sword', name: 'Sword' }, { id: 'Weapon_Axe', name: 'Axe' }, { id: 'Weapon_Bow', name: 'Bow' } ];
         } else if (modifierId === 'EM_WeaponFinaleDamage') {
-            // Simulate fetching all applicable weapons
              return MODIFIERS
-                .filter(m => m.type === 'main' && m.statName && m.statName !== 'None' && !m.isCustom) // Example filter
+                .filter(m => m.type === 'main' && m.statName && m.statName !== 'None' && !m.isCustom)
                 .map(m => ({ id: m.id, name: m.displayName || m.name }))
                 .sort((a, b) => a.name.localeCompare(b.name));
         }
-        // Add logic for other variant modifiers here...
-
-        return []; // Default empty list if no specific logic found
+        return [];
     }
 
-
-    // Populates the variant dropdown
+    // Populates the variant dropdown (Standard Select is OK here, or could be custom too)
     function populateVariantOptions(variantSelect, modifierId) {
         const variants = getPossibleVariants(modifierId);
-
-        // Clear existing options except the default
-        while (variantSelect.options.length > 1) {
-            variantSelect.remove(1);
-        }
-
+        while (variantSelect.options.length > 1) variantSelect.remove(1); // Clear existing
         variants.forEach(variant => {
             const option = document.createElement('option');
-            option.value = variant.id; // Use variant ID (e.g., weapon ID)
-            option.textContent = variant.name; // Display variant name
+            option.value = variant.id;
+            option.textContent = variant.name;
             variantSelect.appendChild(option);
         });
     }
 
-    // Creates, updates, or removes the variant selector UI
+    // Creates, updates, or removes the variant selector UI (Using standard select for simplicity here)
     function updateVariantSelector(slotElement, mainModifier) {
         const variantContainer = slotElement.querySelector('.variant-selection-container');
-        if (!variantContainer) return; // Should not happen
+        if (!variantContainer) return;
 
-        // If main modifier has variants, show and populate the selector
+        const mainModifierId = mainModifier?.id; // Get ID before potentially clearing
+        const currentVariantSelect = variantContainer.querySelector('select.variant-modifier-select');
+        const currentVariantValue = currentVariantSelect?.value; // Preserve value
+
         if (mainModifier?.hasVariants) {
-            variantContainer.innerHTML = ''; // Clear previous content
             variantContainer.style.display = 'block';
+            // Only rebuild if it doesn't exist or the main mod changed
+            if (!currentVariantSelect || variantContainer.dataset.currentMainMod !== mainModifierId) {
+                variantContainer.innerHTML = ''; // Clear previous content
+                variantContainer.dataset.currentMainMod = mainModifierId; // Track current mod
 
-            const groupDiv = document.createElement('div');
-            groupDiv.classList.add('variant-selection-group'); // Add specific class
+                const groupDiv = document.createElement('div');
+                groupDiv.classList.add('variant-selection-group');
 
-            const label = document.createElement('label');
-            label.setAttribute('for', `${slotElement.dataset.slotId}-variant`);
-            label.textContent = 'Select Variant:';
-            groupDiv.appendChild(label);
+                const label = document.createElement('label');
+                label.setAttribute('for', `${slotElement.dataset.slotId}-variant`);
+                label.textContent = 'Select Variant:';
+                groupDiv.appendChild(label);
 
-            const select = document.createElement('select');
-            select.id = `${slotElement.dataset.slotId}-variant`;
-            select.classList.add('variant-modifier-select'); // Add specific class
+                const select = document.createElement('select');
+                select.id = `${slotElement.dataset.slotId}-variant`;
+                select.classList.add('variant-modifier-select'); // Use standard select
 
-            const defaultOption = document.createElement('option');
-            defaultOption.value = '';
-            defaultOption.textContent = '--- Select Variant ---';
-            select.appendChild(defaultOption);
+                const defaultOption = document.createElement('option');
+                defaultOption.value = '';
+                defaultOption.textContent = '--- Select Variant ---';
+                select.appendChild(defaultOption);
 
-            populateVariantOptions(select, mainModifier.id);
-            select.addEventListener('change', handleSelectChange); // Trigger recalculation on change
+                populateVariantOptions(select, mainModifier.id);
+                // Restore previous value if applicable
+                 if (currentVariantValue && select.querySelector(`option[value="${currentVariantValue}"]`)) {
+                     select.value = currentVariantValue;
+                 }
 
-            groupDiv.appendChild(select);
-            variantContainer.appendChild(groupDiv);
+                // Add change listener to trigger main recalc
+                select.addEventListener('change', (e) => {
+                     const mainSelectId = slotElement.querySelector('.custom-select-container')?.dataset.selectId;
+                     const mainNativeSelect = mainSelectId ? document.getElementById(mainSelectId) : null;
+                     if (mainNativeSelect) {
+                         // Trigger change on main select to force update
+                         const changeEvent = new Event('change', { bubbles: true });
+                         mainNativeSelect.dispatchEvent(changeEvent);
+                     }
+                 });
 
+                groupDiv.appendChild(select);
+                variantContainer.appendChild(groupDiv);
+            }
         } else {
-            // If main modifier has no variants, hide the container
             variantContainer.innerHTML = ''; // Clear content
             variantContainer.style.display = 'none';
+            delete variantContainer.dataset.currentMainMod; // Clear tracking
         }
     }
 
@@ -478,95 +623,108 @@ document.addEventListener('DOMContentLoaded', () => {
         const itemLevel = parseInt(levelInput?.value, 10) || DEFAULT_LEVEL;
 
         const selectedModifiers = [];
-        const mainSelect = slotElement.querySelector('select.main-modifier-select');
-        const mainModifierId = mainSelect?.value;
-        const mainModifier = mainModifierId ? getModifierById(mainModifierId) : null;
-        selectedModifiers.push(mainModifier); // Add main mod (or null)
 
-        // Update variant selector UI based on main modifier (Issue #4)
+        // Get main modifier from the HIDDEN NATIVE select
+        const mainNativeSelect = slotElement.querySelector('select.native-modifier-select[data-modifier-type="main"]');
+        const mainModifierId = mainNativeSelect?.value;
+        const mainModifier = mainModifierId ? getModifierById(mainModifierId) : null;
+        selectedModifiers.push(mainModifier);
+
+        // Update variant selector UI based on main modifier
         updateVariantSelector(slotElement, mainModifier);
 
-        // Read selected variant *after* selector is potentially updated (Issue #4)
+        // Read selected variant *after* selector is potentially updated
         const variantSelect = slotElement.querySelector('select.variant-modifier-select');
         const selectedVariantId = variantSelect?.value || null;
 
-        // Update secondary slot counts based on selected main modifier OR slot defaults
+        // Update secondary slot counts
         const defaultSlotDef = SLOTS.find(s => s.id === slotElement.dataset.slotId);
         const positiveCount = mainModifier?.secondaryPositiveCount ?? defaultSlotDef?.secondaryPositiveCount ?? 0;
         const negativeCount = mainModifier?.secondaryNegativeCount ?? defaultSlotDef?.secondaryNegativeCount ?? 0;
-
-        // Recreate secondary slots if counts changed, preserving values
-        updateSecondarySlots(slotElement, positiveCount, negativeCount);
+        updateSecondarySlots(slotElement, positiveCount, negativeCount); // This re-inits custom selects inside
 
         // --- Update Main Modifier Display ---
-         const mainEffectDisplay = mainSelect?.previousElementSibling;
-         if (mainEffectDisplay?.classList.contains('modifier-effect-display')) {
-             // Pass selected variant ID to the display function (Issue #4)
-             mainEffectDisplay.innerHTML = mainModifier ? getModifierEffectText(mainModifier, itemTier, itemLevel, selectedVariantId) : ' ';
-         }
-         if (mainSelect) {
-             mainSelect.className = mainSelect.className.replace(/selected-rarity-\w+/g, '').trim();
-             mainSelect.style.borderColor = '';
-             mainSelect.title = '';
+        const mainCustomContainer = slotElement.querySelector('.custom-select-container[data-select-id="' + mainNativeSelect?.id + '"]');
+        const mainEffectDisplay = mainCustomContainer?.previousElementSibling; // Effect display is before container
+        const mainValueDisplay = mainCustomContainer?.querySelector('.custom-select-value');
+
+        if (mainEffectDisplay?.classList.contains('modifier-effect-display')) {
+            mainEffectDisplay.innerHTML = mainModifier ? getModifierEffectText(mainModifier, itemTier, itemLevel, selectedVariantId) : ' ';
+        }
+        // Update value display styling (border, etc.) - This should ideally happen during selection, but double-check here
+        if (mainValueDisplay) {
+             mainValueDisplay.className = 'custom-select-value'; // Reset
+             mainValueDisplay.style.borderColor = '';
+             mainValueDisplay.title = ''; // Reset title
              if (mainModifier) {
                  const rarity = mainModifier.rarity;
                  if (rarity) {
-                     mainSelect.classList.add(`selected-rarity-${rarity.toLowerCase()}`);
-                     mainSelect.style.borderColor = getRarityColor(rarity);
+                     mainValueDisplay.classList.add(`selected-rarity-${rarity.toLowerCase()}`);
+                     mainValueDisplay.style.borderColor = getRarityColor(rarity);
                  }
                  let titleText = `Rarity: ${rarity}`;
-                 if(mainModifier.description) {
-                      // Use optional chaining on modifier if it might be null inside description access
-                      titleText += `\nEffect Desc: ${mainModifier.description || 'N/A'}`;
-                 }
-                 mainSelect.title = titleText;
+                 if(mainModifier.description) titleText += `\nDesc: ${mainModifier.description}`;
+                 mainValueDisplay.title = titleText;
+
+                 // Update displayed text if needed (e.g., if it wasn't set correctly on select)
+                 const currentDisplayContent = mainModifier ? (mainValueDisplay.dataset.value === mainModifier.id ? mainValueDisplay.innerHTML : getModifierEffectText(mainModifier, DEFAULT_TIER, DEFAULT_LEVEL, null)) : '--- Select Main ---';
+                 const uniqueIndicator = mainModifier.rarity === 'Unique' ? '⭐ ' : '';
+                 mainValueDisplay.innerHTML = uniqueIndicator + (currentDisplayContent || mainModifier.displayName || ' ');
+
+             } else {
+                 // Reset display for default option
+                 mainValueDisplay.innerHTML = mainNativeSelect?.options[0]?.textContent || '--- Select Main ---';
              }
-         }
+        }
+
 
         // --- Update Secondary Modifiers Display ---
         // Select secondary modifiers *after* slots are potentially recreated
-        const secondarySelects = slotElement.querySelectorAll('select.secondary-modifier-select');
-        secondarySelects.forEach(select => {
-            const selectedOption = select.options[select.selectedIndex];
-            const modifierId = selectedOption?.value;
+        slotElement.querySelectorAll('select.native-modifier-select[data-modifier-type="secondary"]').forEach(nativeSelect => {
+            const modifierId = nativeSelect.value;
             const modifier = modifierId ? getModifierById(modifierId) : null;
-            selectedModifiers.push(modifier); // Add secondary mod (or null)
+            selectedModifiers.push(modifier);
 
-            const effectDisplay = select.previousElementSibling;
-             if (effectDisplay?.classList.contains('modifier-effect-display')) {
-                 // Secondary mods typically don't have variants, pass null
-                 effectDisplay.innerHTML = modifier ? getModifierEffectText(modifier, itemTier, itemLevel, null) : ' ';
-             }
+            const customContainer = slotElement.querySelector(`.custom-select-container[data-select-id="${nativeSelect.id}"]`);
+            const effectDisplay = customContainer?.previousElementSibling;
+            const valueDisplay = customContainer?.querySelector('.custom-select-value');
 
-            // Update select styling based on selected modifier
-            select.className = select.className.replace(/selected-rarity-\w+/g, '').trim();
-            select.className = select.className.replace(/selected-positivity-\w+/g, '').trim();
-            select.style.borderColor = ''; // Reset border
-            select.title = ''; // Reset title
-
-            if (modifier) {
-                const rarity = modifier.rarity;
-                const positivity = modifier.positivity;
-                if (rarity) {
-                    select.classList.add(`selected-rarity-${rarity.toLowerCase()}`);
-                    select.style.borderColor = getRarityColor(rarity);
-                }
-                 if (positivity) {
-                     select.classList.add(`selected-positivity-${positivity.toLowerCase()}`);
-                }
-                 let titleText = `Rarity: ${rarity}`;
-                 if (positivity) {
-                     titleText += ` | Type: ${positivity.charAt(0).toUpperCase() + positivity.slice(1)}`;
-                 }
-                 if(modifier.description) {
-                      titleText += `\nEffect Desc: ${modifier.description || 'N/A'}`;
-                 }
-                 select.title = titleText;
+            if (effectDisplay?.classList.contains('modifier-effect-display')) {
+                effectDisplay.innerHTML = modifier ? getModifierEffectText(modifier, itemTier, itemLevel, null) : ' ';
             }
+             // Update value display styling
+             if (valueDisplay) {
+                 valueDisplay.className = 'custom-select-value'; // Reset
+                 valueDisplay.style.borderColor = '';
+                 valueDisplay.title = '';
+                 if (modifier) {
+                     const rarity = modifier.rarity;
+                     const positivity = modifier.positivity;
+                     if (rarity) {
+                         valueDisplay.classList.add(`selected-rarity-${rarity.toLowerCase()}`);
+                         valueDisplay.style.borderColor = getRarityColor(rarity);
+                     }
+                     if (positivity) {
+                         valueDisplay.classList.add(`selected-positivity-${positivity.toLowerCase()}`);
+                     }
+                     let titleText = `Rarity: ${rarity}`;
+                     if (positivity) titleText += ` | Type: ${positivity.charAt(0).toUpperCase() + positivity.slice(1)}`;
+                     if(modifier.description) titleText += `\nDesc: ${modifier.description}`;
+                     valueDisplay.title = titleText;
+
+                     // Update displayed text if needed
+                     const currentDisplayContent = modifier ? (valueDisplay.dataset.value === modifier.id ? valueDisplay.innerHTML : getModifierEffectText(modifier, DEFAULT_TIER, DEFAULT_LEVEL, null)) : '--- Select Secondary ---';
+                     const uniqueIndicator = modifier.rarity === 'Unique' ? '⭐ ' : '';
+                     valueDisplay.innerHTML = uniqueIndicator + (currentDisplayContent || modifier.displayName || ' ');
+
+                 } else {
+                     // Reset display for default option
+                     valueDisplay.innerHTML = nativeSelect.options[0]?.textContent || '--- Select Secondary ---';
+                 }
+             }
         });
 
-
-        // Calculate and display Required Soul Level using only non-null modifiers
+        // Calculate and display Required Soul Level
         const validModifiers = selectedModifiers.filter(mod => mod !== null);
         const requiredLevel = calculateRequiredLevel(validModifiers, itemTier, itemLevel);
         const reqLevelValueSpan = slotElement.querySelector('.req-level-value');
@@ -582,7 +740,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const playerLevel = parseInt(playerSoulLevelInput.value, 10) || 1;
         const isActive = playerLevel >= requiredLevel;
         slotElement.classList.toggle('inactive-slot', !isActive);
-         // Also update the required level text color
         const reqLevelValueSpan = slotElement.querySelector('.req-level-value');
         if (reqLevelValueSpan) {
             reqLevelValueSpan.style.color = isActive ? 'var(--accent-color)' : 'var(--negative-color)';
@@ -596,7 +753,6 @@ document.addEventListener('DOMContentLoaded', () => {
              updateSlotActiveState(slotElement, requiredLevel);
         });
     }
-
 
     // --- Start the planner ---
     initPlanner();
