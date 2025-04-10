@@ -268,12 +268,7 @@ header h1 {
 .secondary-modifier-select.selected-rarity-unique { border-color: var(--rarity-unique) !important; font-weight: bold; }
 
 /* Optional: Style secondary based on positivity (subtle indicator) */
-.secondary-modifier-select.selected-positivity-positive {
-    /* Maybe a subtle background glow or icon? */
-}
-.secondary-modifier-select.selected-positivity-negative {
-     /* Maybe a subtle background glow or icon? */
-}
+/* Removed empty rulesets */
 
 
 .secondary-modifiers-container {

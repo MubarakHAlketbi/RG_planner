@@ -41,7 +41,8 @@ const MAX_LEVEL = 10;
 // 'relatedItemIds' added for slot mapping
 // 'allowedSlots' will be generated dynamically later
 
-const MODIFIERS = [
+// Use 'let' here to allow reassignment after processing JSON data
+let MODIFIERS = [
     // --- Main Modifiers (Standard Stats - Placeholder, will be overwritten by JSON) ---
     // These are kept temporarily to avoid breaking the initial structure,
     // but will be replaced or updated by the JSON import logic below.
@@ -282,10 +283,11 @@ MODIFIERS.forEach(webMod => {
 // 4. Generate Allowed Slots
 finalModifiers.forEach(modifier => {
     const allowed = new Set();
-    if (modifier.relatedItemIds && modifier.relatedItemIds.length > 0) {
+    // Use optional chaining for safer access
+    if (modifier?.relatedItemIds?.length > 0) {
         modifier.relatedItemIds.forEach(itemId => {
             const equipment = jsonEquipmentMap.get(itemId);
-            if (equipment && equipment.PossibleSlotIds) {
+            if (equipment?.PossibleSlotIds) { // Use optional chaining
                 equipment.PossibleSlotIds.forEach(jsonSlotId => {
                     const websiteSlots = websiteSlotMapping[jsonSlotId];
                     if (websiteSlots) {
@@ -320,7 +322,7 @@ finalModifiers.forEach(modifier => {
     if (modifier.type === 'main' && (modifier.allowedSlots.includes('Ring1') || modifier.allowedSlots.includes('Ring2'))) {
         // Find the corresponding Ring slot definition
         const ringSlot1 = SLOTS.find(s => s.id === 'Ring1');
-        const ringSlot2 = SLOTS.find(s => s.id === 'Ring2');
+        // const ringSlot2 = SLOTS.find(s => s.id === 'Ring2'); // ringSlot2 was unused
         if (ringSlot1) {
             modifier.secondaryPositiveCount = ringSlot1.secondaryPositiveCount;
             modifier.secondaryNegativeCount = ringSlot1.secondaryNegativeCount;
@@ -362,61 +364,73 @@ function formatNumber(num) {
 
 // Mimics EquipmentModifier.GetFixedValue / GetVariableValue / GetFinalValue
 // Adjusted scaling factors based on C# code analysis
+// SonarLint: Cognitive Complexity was high, simplified slightly and added comments
 function calculateModifierValue(modifier, itemTier, itemLevel, playerLevel = 1) {
-    if (!modifier || (!modifier.statName && !modifier.isCustom)) return 0; // Need stat or custom logic
-    if (modifier.isCustom) return 0; // Custom values handled by calcFunc
+    // Guard clauses for invalid inputs
+    if (!modifier || (!modifier.statName && !modifier.isCustom)) return 0;
+    if (modifier.isCustom) return 0; // Custom values handled by specific calcFunc
 
     const scale = modifier.scaleWithItemTierAndLevel !== false;
-    let fixedValue = 0;
-    let variableValue = 0;
-    const baseValue = modifier.baseValue ?? (modifier.statsApplicationType === 'Multiplier' ? 1 : 0);
-    const valuePerLevel = modifier.valuePerLevel ?? (modifier.statsApplicationType === 'Multiplier' ? 1 : 0);
+    const isMultiplier = modifier.statsApplicationType === 'Multiplier';
+    const baseValue = modifier.baseValue ?? (isMultiplier ? 1 : 0);
+    const valuePerLevel = modifier.valuePerLevel ?? (isMultiplier ? 1 : 0);
     itemTier = Number(itemTier) || 1;
     itemLevel = Number(itemLevel) || 1;
 
-    // Fixed Value Part - Matches C# logic more closely
-    if (baseValue !== (modifier.statsApplicationType === 'Multiplier' ? 1 : 0)) {
-        if (modifier.statsApplicationType === 'Multiplier') {
+    let fixedValue = isMultiplier ? 1 : 0;
+    let variableValue = isMultiplier ? 1 : 0;
+
+    // --- Fixed Value Part ---
+    // Calculate the part of the value derived from the modifier's BaseValue
+    if (baseValue !== (isMultiplier ? 1 : 0)) {
+        if (isMultiplier) {
             // C# Example: MathF.Pow(this.GetBaseValue(), scale ? (float)(0.8 + (0.01 * (itemLevel - 1)) + 0.2 * itemTier) : 1f);
-            fixedValue = scale
-                ? Math.pow(baseValue, (0.8 + (0.01 * (itemLevel - 1)) + 0.2 * itemTier))
-                : baseValue;
+            const exponent = scale ? (0.8 + (0.01 * (itemLevel - 1)) + 0.2 * itemTier) : 1;
+            fixedValue = Math.pow(baseValue, exponent);
         } else { // Base or Post
             // C# Example: this.GetBaseValue() * (scale ? (float)(1 + 0.05 * (itemLevel - 1) + 0.1 * itemTier) : 1f); -> Adjusted based on common patterns
-             fixedValue = baseValue * (scale ? (1 + 0.05 * (itemLevel - 1) + 0.1 * itemTier) : 1); // Assuming additive scaling for base
+            const multiplier = scale ? (1 + 0.05 * (itemLevel - 1) + 0.1 * itemTier) : 1;
+            fixedValue = baseValue * multiplier;
         }
-    } else {
-         fixedValue = (modifier.statsApplicationType === 'Multiplier') ? 1 : 0;
     }
 
-    // Variable Value Part (Player Level = 1 for planner display) - Matches C# logic
-     if (valuePerLevel !== (modifier.statsApplicationType === 'Multiplier' ? 1 : 0) && playerLevel > 0) {
-         if (modifier.statsApplicationType === 'Multiplier') {
-             // C# Example: MathF.Pow(MathF.Pow(this.GetValuePerLevel(), playerLevel), scale ? (float)(0.875 + (0.005 * (itemLevel - 1)) + 0.125 * itemTier) : 1f);
-             const baseVarMult = Math.pow(valuePerLevel, playerLevel);
-             variableValue = scale
-                 ? Math.pow(baseVarMult, (0.875 + (0.005 * (itemLevel - 1)) + 0.125 * itemTier))
-                 : baseVarMult;
-         } else { // Base or Post
-             // C# Example: (float)((double)this.GetValuePerLevel() * (double)playerLevel * (scale ? 0.5 + 0.025 * (itemLevel - 1) + 0.5 * itemTier : 1.0));
-             variableValue = valuePerLevel * playerLevel * (scale ? (0.5 + 0.025 * (itemLevel - 1) + 0.5 * itemTier) : 1.0);
-         }
-     } else {
-         variableValue = (modifier.statsApplicationType === 'Multiplier') ? 1 : 0;
-     }
+    // --- Variable Value Part ---
+    // Calculate the part of the value derived from the modifier's ValuePerLevel (scaled by playerLevel)
+    if (valuePerLevel !== (isMultiplier ? 1 : 0) && playerLevel > 0) {
+        if (isMultiplier) {
+            // C# Example: MathF.Pow(MathF.Pow(this.GetValuePerLevel(), playerLevel), scale ? (float)(0.875 + (0.005 * (itemLevel - 1)) + 0.125 * itemTier) : 1f);
+            const baseVarMult = Math.pow(valuePerLevel, playerLevel);
+            const exponent = scale ? (0.875 + (0.005 * (itemLevel - 1)) + 0.125 * itemTier) : 1;
+            variableValue = Math.pow(baseVarMult, exponent);
+        } else { // Base or Post
+            // C# Example: (float)((double)this.GetValuePerLevel() * (double)playerLevel * (scale ? 0.5 + 0.025 * (itemLevel - 1) + 0.5 * itemTier : 1.0));
+            const multiplier = scale ? (0.5 + 0.025 * (itemLevel - 1) + 0.5 * itemTier) : 1.0;
+            variableValue = valuePerLevel * playerLevel * multiplier;
+        }
+    }
 
-    // Combine
-    let finalValue = 0;
-    if (modifier.statsApplicationType === 'Multiplier') {
+    // --- Combine ---
+    let finalValue;
+    if (isMultiplier) {
         const calculated = fixedValue * variableValue;
         // Handle potential NaN or 0 results for multipliers, default to 1 (no change)
-        finalValue = (isNaN(calculated) || calculated === 0) ? 1 : calculated;
+        // Extracted nested ternary for SonarLint S3358
+        if (isNaN(calculated) || calculated === 0) {
+            finalValue = 1;
+        } else {
+            finalValue = calculated;
+        }
     } else { // Base or Post
         finalValue = (fixedValue || 0) + (variableValue || 0);
     }
 
     // Ensure value is not NaN
-    return isNaN(finalValue) ? (modifier.statsApplicationType === 'Multiplier' ? 1 : 0) : finalValue;
+    // Extracted nested ternary for SonarLint S3358
+    if (isNaN(finalValue)) {
+        return isMultiplier ? 1 : 0;
+    } else {
+        return finalValue;
+    }
 }
 
 
@@ -425,7 +439,7 @@ function calculateModifierValue(modifier, itemTier, itemLevel, playerLevel = 1) 
 function getBaseRequiredLevel(selectedModifiers) {
     let baseLevel = 0;
     selectedModifiers.forEach(mod => {
-        if (mod && mod.requiredLevelModifier !== undefined) {
+        if (mod?.requiredLevelModifier !== undefined) { // Use optional chaining
             // Main mods and positive secondaries ADD cost
             if (mod.type === 'main' || mod.positivity === 'positive') {
                 baseLevel += mod.requiredLevelModifier;
@@ -467,53 +481,77 @@ function equivalentLevel(tier, level, minTier, maxTier) {
     const minVal = minTier * 10.0;
     const maxVal = maxTier * 10.0 + 6.5;
     // RemapClamp equivalent
-    const rawRemap = ((currentVal - minVal) / (maxVal - minVal)) * (10.0 - 0.0) + 0.0;
+    const range = maxVal - minVal;
+    // Avoid division by zero if min/max tiers are the same
+    const rawRemap = range === 0 ? 0 : ((currentVal - minVal) / range) * 10.0;
     return Math.max(0.0, Math.min(10.0, rawRemap)); // Clamp between 0 and 10
 }
 
+// Map for cleaner stat name replacements
+const statDisplayNameMap = {
+    'AttackCoolDown': 'Attack Speed',
+    'DashCoolDown': 'Dash Cooldown',
+    'MaxHealth': 'Max HP',
+    'XPGain': 'XP Gain',
+    'PickUpDistance': 'Pickup Range',
+    'CardDropChance_Void': 'Void Drop Chance',
+    'CardDropChance_Fire': 'Fire Drop Chance',
+    'CardDropChance_Wind': 'Wind Drop Chance',
+    'CardDropChance_Moon': 'Moon Drop Chance',
+    'CardDropChance_Sun': 'Sun Drop Chance',
+    // Add more specific replacements as needed
+};
+
+// SonarLint: Cognitive Complexity was high, simplified slightly
 function getDisplayTextForStandardStat(modifier, itemTier, itemLevel) {
-    if (!modifier || !modifier.statName) return 'N/A';
+    // Use optional chaining for safer access
+    if (!modifier?.statName) return 'N/A';
+
     const finalValue = calculateModifierValue(modifier, itemTier, itemLevel);
     let displayValue = finalValue;
     let prefix = "";
     let suffix = "";
-    let statDisplayName = modifier.statName;
 
-    // Simple replacements for display
-    statDisplayName = statDisplayName.replace(/([A-Z])/g, ' $1').trim(); // Add spaces
-    statDisplayName = statDisplayName.replace('Cool Down', 'Cooldown');
-    statDisplayName = statDisplayName.replace('Max Health', 'Max HP'); // Common abbreviation
-    statDisplayName = statDisplayName.replace('X P Gain', 'XP Gain');
-    statDisplayName = statDisplayName.replace('Pick Up Distance', 'Pickup Range');
-    statDisplayName = statDisplayName.replace('Attack Cool Down', 'Attack Speed'); // More intuitive
-    statDisplayName = statDisplayName.replace('Card Drop Chance ', ''); // Shorten drop chance
+    // Get base display name, apply common replacements first
+    let statDisplayName = statDisplayNameMap[modifier.statName] || modifier.statName;
+    // Generic replacements (add spaces before capitals)
+    statDisplayName = statDisplayName.replace(/([A-Z])/g, ' $1').trim();
 
-    if (modifier.statsApplicationType === 'Multiplier') {
-        if (Math.abs(finalValue - 1) < 0.001) { // Check if effectively 1
-             displayValue = 0; // No change
-             prefix = "+";
-             suffix = "%";
+    const isMultiplier = modifier.statsApplicationType === 'Multiplier';
+    const isNearZero = Math.abs(finalValue) < 0.001;
+    const isNearOne = Math.abs(finalValue - 1) < 0.001;
+
+    if (isMultiplier) {
+        suffix = "%";
+        if (isNearOne) {
+            displayValue = 0; // No change
+            prefix = "+";
         } else {
+            // Calculate percentage change from 1
             displayValue = (finalValue - 1) * 100;
             prefix = displayValue > 0 ? "+" : ""; // Add + only if positive % change
-            suffix = "%";
 
-            // Special handling for cooldown/mitigation where lower is better
-            if (['AttackCooldown', 'DashCoolDown'].includes(modifier.statName) && finalValue < 1) {
-                 displayValue = (1 - finalValue) * 100; // Show reduction %
-                 prefix = "-"; // Indicate reduction
-            } else if (modifier.statName === 'DamageMitigation' && finalValue < 1) {
-                displayValue = (1 - finalValue) * 100; // Show mitigation %
-                prefix = "+"; // Indicate positive effect (more mitigation)
-            } else if (modifier.statName === 'DamageMitigation' && finalValue > 1) {
-                 displayValue = (finalValue - 1) * 100; // Show increased damage taken %
-                 prefix = "-"; // Indicate negative effect (less mitigation)
-                 statDisplayName += " (Taken)"; // Clarify it's damage taken increase
+            // Special handling for stats where lower multiplier is better
+            const lowerIsBetter = ['Attack Speed', 'Dash Cooldown'].includes(statDisplayName);
+            const isMitigation = modifier.statName === 'DamageMitigation';
+
+            if ((lowerIsBetter || isMitigation) && finalValue < 1) {
+                displayValue = (1 - finalValue) * 100; // Show reduction %
+                prefix = lowerIsBetter ? "-" : "+"; // Indicate reduction (-) or positive effect (+)
+            } else if (isMitigation && finalValue > 1) {
+                displayValue = (finalValue - 1) * 100; // Show increased damage taken %
+                prefix = "-"; // Indicate negative effect (less mitigation)
+                statDisplayName += " (Taken)"; // Clarify it's damage taken increase
             }
         }
     } else { // Base or Post
-        prefix = finalValue > 0 ? "+" : "";
+        prefix = finalValue > 0 && !isNearZero ? "+" : "";
         // Suffix might depend on stat (e.g., 's' for duration) - skip for simplicity
+    }
+
+    // Avoid showing prefix for zero values unless it's a percentage
+    if (isNearZero && !isMultiplier) {
+        prefix = "";
     }
 
     return `${prefix}${formatNumber(displayValue)}${suffix} ${statDisplayName}`;
@@ -602,36 +640,41 @@ function calcWeaponFinaleDamageValue(modifier, itemTier, itemLevel) {
 function formatGodStoneLine(value, statName, isPercent = true, isMultiplier = true) {
     let displayValue = value;
     let prefix = "";
+    const isNearZero = Math.abs(value) < 0.001;
+    const isNearOne = Math.abs(value - 1.0) < 0.001;
 
     if (isMultiplier) {
-        if (Math.abs(value - 1) < 0.001) { // Treat near 1 as 0% change
+        if (isNearOne) { // Treat near 1 as 0% change
             displayValue = 0;
         } else {
             displayValue = (value - 1.0) * 100.0;
         }
-    } else if (!isMultiplier && Math.abs(value) < 0.001) { // Treat near 0 as 0 for base stats
+    } else if (!isMultiplier && isNearZero) { // Treat near 0 as 0 for base stats
         displayValue = 0;
     }
 
     if (displayValue > 0) prefix = "+";
 
     // Special case for cooldown reduction (multiplier < 1)
-    if (statName.includes("Cooldown") && isMultiplier && value < 1) {
+    if (statName.includes("Cooldown") && isMultiplier && value < 1 && !isNearOne) {
         displayValue = (1.0 - value) * 100.0;
         prefix = "-"; // Show as reduction
     }
      // Special case for mitigation (multiplier < 1 is good)
-    if (statName.includes("Mitigation") && isMultiplier && value < 1) {
+    if (statName.includes("Mitigation") && isMultiplier && value < 1 && !isNearOne) {
         displayValue = (1.0 - value) * 100.0;
         prefix = "+"; // Show as positive mitigation %
     }
 
+    // Apply display name mapping if available, otherwise format
+    let statDisplayName = statDisplayNameMap[statName] || statName;
+    statDisplayName = statDisplayName.replace(/([A-Z])/g, ' $1').trim();
+    statDisplayName = statDisplayName.replace('Card Drop Chance', 'Drop Chance'); // Generic shortening
 
-     let statDisplayName = statName.replace(/([A-Z])/g, ' $1').trim();
-     statDisplayName = statDisplayName.replace('Card Drop Chance', 'Drop Chance');
-     statDisplayName = statDisplayName.replace('X P Gain', 'XP Gain');
-     statDisplayName = statDisplayName.replace('Attack Cool Down', 'Attack Speed');
-
+    // Avoid prefix for zero values
+    if (Math.abs(displayValue) < 0.001) {
+        prefix = "";
+    }
 
     return `${prefix}${formatNumber(displayValue)}${isPercent ? '%' : ''} ${statDisplayName}`;
 }
@@ -667,8 +710,8 @@ function calcWindStoneValue(modifier, itemTier, itemLevel) {
 
     return [
         formatGodStoneLine(dropChance, "Wind Drop Chance"),
-        formatGodStoneLine(attackSpeedMult, "Attack Speed"),
-        formatGodStoneLine(dashCooldown, "Dash Cooldown"), // Will show as reduction
+        formatGodStoneLine(attackSpeedMult, "AttackCoolDown"), // Use internal name for formatting logic
+        formatGodStoneLine(dashCooldown, "DashCoolDown"), // Use internal name for formatting logic
         formatGodStoneLine(moveSpeed, "Move Speed")
     ].join('<br>');
 }
@@ -680,8 +723,8 @@ function calcGaleStoneValue(modifier, itemTier, itemLevel) {
     const moveSpeed = 1.1 + 0.025 * level;
      return [
         formatGodStoneLine(dropChance, "Wind Drop Chance"),
-        formatGodStoneLine(attackSpeedMult, "Attack Speed"),
-        formatGodStoneLine(dashCooldown, "Dash Cooldown"),
+        formatGodStoneLine(attackSpeedMult, "AttackCoolDown"),
+        formatGodStoneLine(dashCooldown, "DashCoolDown"),
         formatGodStoneLine(moveSpeed, "Move Speed")
     ].join('<br>');
 }
@@ -693,7 +736,7 @@ function calcMoonStoneValue(modifier, itemTier, itemLevel) {
 
     return [
         formatGodStoneLine(dropChance, "Moon Drop Chance"),
-        formatGodStoneLine(mitigation, "Damage Mitigation"), // Shows as positive mitigation %
+        formatGodStoneLine(mitigation, "DamageMitigation"), // Use internal name
         formatGodStoneLine(defence, "Defence")
     ].join('<br>');
 }
@@ -704,7 +747,7 @@ function calcLunarStoneValue(modifier, itemTier, itemLevel) {
     const defence = 1.25 + 0.05 * level;
      return [
         formatGodStoneLine(dropChance, "Moon Drop Chance"),
-        formatGodStoneLine(mitigation, "Damage Mitigation"),
+        formatGodStoneLine(mitigation, "DamageMitigation"),
         formatGodStoneLine(defence, "Defence")
     ].join('<br>');
 }
@@ -717,7 +760,7 @@ function calcSunStoneValue(modifier, itemTier, itemLevel) {
     return [
         formatGodStoneLine(dropChance, "Sun Drop Chance"),
         formatGodStoneLine(purification, "Purification"),
-        formatGodStoneLine(xpMult, "XP Gain")
+        formatGodStoneLine(xpMult, "XPGain") // Use internal name
     ].join('<br>');
 }
 function calcSolarStoneValue(modifier, itemTier, itemLevel) {
@@ -728,7 +771,7 @@ function calcSolarStoneValue(modifier, itemTier, itemLevel) {
      return [
         formatGodStoneLine(dropChance, "Sun Drop Chance"),
         formatGodStoneLine(purification, "Purification"),
-        formatGodStoneLine(xpMult, "XP Gain")
+        formatGodStoneLine(xpMult, "XPGain")
     ].join('<br>');
 }
 function calcStelarStoneValue(modifier, itemTier, itemLevel) {
@@ -742,8 +785,8 @@ function calcStelarStoneValue(modifier, itemTier, itemLevel) {
     return [
         formatGodStoneLine(dropChance, "Sun/Moon Drop Chance"),
         formatGodStoneLine(purification, "Purification"),
-        formatGodStoneLine(xpMult, "XP Gain"),
-        formatGodStoneLine(mitigation, "Damage Mitigation"),
+        formatGodStoneLine(xpMult, "XPGain"),
+        formatGodStoneLine(mitigation, "DamageMitigation"),
         formatGodStoneLine(defence, "Defence")
     ].join('<br>');
 }
@@ -760,8 +803,8 @@ function calcStormStoneValue(modifier, itemTier, itemLevel) {
         formatGodStoneLine(dropChance, "Fire/Wind Drop Chance"),
         formatGodStoneLine(piercingScaling * 100, "Piercing Scaling", true, false),
         formatGodStoneLine(power, "Power"),
-        formatGodStoneLine(attackSpeedMult, "Attack Speed"),
-        formatGodStoneLine(dashCooldown, "Dash Cooldown"),
+        formatGodStoneLine(attackSpeedMult, "AttackCoolDown"),
+        formatGodStoneLine(dashCooldown, "DashCoolDown"),
         formatGodStoneLine(moveSpeed, "Move Speed")
     ].join('<br>');
 }
@@ -772,16 +815,19 @@ function getModifierEffectText(modifier, itemTier = 1, itemLevel = 1) {
     itemTier = Number(itemTier) || 1;
     itemLevel = Number(itemLevel) || 1;
 
-    if (modifier && modifier.isCustom && typeof window[modifier.calcFunc] === 'function') {
+    // Use optional chaining
+    if (modifier?.isCustom && typeof window[modifier.calcFunc] === 'function') {
         try {
             return window[modifier.calcFunc](modifier, itemTier, itemLevel);
         } catch (e) {
             console.error(`Error calculating custom modifier ${modifier.id}:`, e);
             return `${modifier.name} (Calculation Error)`;
         }
-    } else if (modifier && modifier.statName && modifier.statsApplicationType) {
+    // Use optional chaining
+    } else if (modifier?.statName && modifier?.statsApplicationType) {
         return getDisplayTextForStandardStat(modifier, itemTier, itemLevel);
-    } else if (modifier && modifier.statName === null && modifier.type === 'main') {
+    // Use optional chaining
+    } else if (modifier?.statName === null && modifier?.type === 'main') {
          // Handle "None" main stats like Chest_M_Empty
          return `Provides Secondary Slots Only`;
     } else if (modifier) {
@@ -821,42 +867,58 @@ function getPositivityColor(positivity) {
 }
 
 // --- Final Data Setup ---
-// Assign the processed modifiers back to the global scope if needed, or keep as MODIFIERS_UPDATED
-const MODIFIERS = MODIFIERS_UPDATED; // Overwrite the original placeholder
+// Assign the processed modifiers back to the global scope
+// This overwrites the initial placeholder 'let MODIFIERS'
+MODIFIERS = MODIFIERS_UPDATED;
 
 // Generate allowedSlots after MODIFIERS is finalized
+// This loop seems redundant as allowedSlots were already generated above (lines 283-341)
+// and assigned to finalModifiers, which was then assigned to MODIFIERS.
+// However, let's keep it but ensure it uses the final MODIFIERS array.
+// Re-evaluating: The first loop (283-341) populates allowedSlots based on relatedItemIds.
+// This second loop seems intended as a fallback or broader assignment,
+// especially for secondaries. Let's refine the logic here.
+
 MODIFIERS.forEach(modifier => {
-    const allowed = new Set();
-    if (modifier.relatedItemIds && modifier.relatedItemIds.length > 0) {
-        modifier.relatedItemIds.forEach(itemId => {
-            const equipment = jsonEquipmentMap.get(itemId);
-            if (equipment && equipment.PossibleSlotIds) {
-                equipment.PossibleSlotIds.forEach(jsonSlotId => {
-                    const websiteSlots = websiteSlotMapping[jsonSlotId];
-                    if (websiteSlots) {
-                        websiteSlots.forEach(wsId => allowed.add(wsId));
-                    }
-                });
-            }
-        });
-    } else if (modifier.type === 'secondary') {
-        // Fallback for secondaries - allow all slots initially.
-        // Filtering during population will be more accurate.
-         SLOTS.forEach(slot => allowed.add(slot.id));
-    } else if (modifier.type === 'main' && !modifier.isCustom && modifier.statName) {
-         // Fallback for standard main stats not linked via JSON
-         SLOTS.forEach(slot => allowed.add(slot.id));
+    // If allowedSlots is already populated (from relatedItemIds), skip broader assignment.
+    if (modifier.allowedSlots && modifier.allowedSlots.length > 0) {
+        return;
     }
-    modifier.allowedSlots = Array.from(allowed);
+
+    const allowed = new Set();
+    // Use optional chaining
+    if (modifier?.type === 'secondary') {
+        // Fallback for secondaries without specific item links.
+        // Allow all slots initially. Filtering during population in script.js will be more accurate.
+         SLOTS.forEach(slot => allowed.add(slot.id));
+         // console.warn(`Secondary modifier "${modifier.id}" has no relatedItemIds or existing allowedSlots. Allowing all slots as a fallback.`);
+    } else if (modifier?.type === 'main' && !modifier.isCustom && modifier.statName) {
+         // Fallback for standard main stats not linked via JSON and not already assigned slots
+         SLOTS.forEach(slot => allowed.add(slot.id));
+         console.warn(`Main stat modifier "${modifier.id}" has no relatedItemIds or existing allowedSlots. Allowing all slots as a fallback.`);
+    }
+    // Only assign if we generated a fallback list
+    if (allowed.size > 0) {
+        modifier.allowedSlots = Array.from(allowed);
+    } else if (!modifier.allowedSlots) {
+        // Ensure allowedSlots always exists, even if empty
+        modifier.allowedSlots = [];
+    }
 });
+
 
 // Add default secondary counts to SLOTS if not overridden by main mod
 SLOTS.forEach(slot => {
     if (slot.secondaryPositiveCount === undefined) slot.secondaryPositiveCount = 2;
     if (slot.secondaryNegativeCount === undefined) slot.secondaryNegativeCount = 1;
-     // Ring specific counts
+     // Ring specific counts (already defined in initial SLOTS, but this ensures it)
     if (slot.id === 'Ring1' || slot.id === 'Ring2') {
         slot.secondaryPositiveCount = 1;
         slot.secondaryNegativeCount = 1;
     }
 });
+
+// Define RARITY_ORDER globally if not already defined (needed for sorting in script.js)
+const RARITY_ORDER = [
+    'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Mythical', 'Ascended', 'Unique'
+];

@@ -120,7 +120,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const defaultOption = document.createElement('option');
         defaultOption.value = '';
-        defaultOption.textContent = `--- Select ${type === 'main' ? 'Main' : (positivity === 'positive' ? 'Positive' : 'Negative')} ---`;
+        // Extract nested ternary for SonarLint S3358
+        let selectTypeText;
+        if (type === 'main') {
+            selectTypeText = 'Main';
+        } else {
+            selectTypeText = positivity === 'positive' ? 'Positive' : 'Negative';
+        }
+        defaultOption.textContent = `--- Select ${selectTypeText} ---`;
         select.appendChild(defaultOption);
 
         // Modifier effect display area
@@ -160,6 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Sort modifiers primarily by rarity order, then by name
         addedModifiers.sort((a, b) => {
+            // Ensure RARITY_ORDER is defined (should be in data.js)
             const rarityA = RARITY_ORDER.indexOf(a.rarity);
             const rarityB = RARITY_ORDER.indexOf(b.rarity);
             if (rarityA !== rarityB) {
@@ -202,12 +210,9 @@ document.addEventListener('DOMContentLoaded', () => {
             option.dataset.name = modifier.name.toLowerCase();
             option.dataset.effectText = baseDisplayText.toLowerCase();
 
-            // Apply filtering
-            const matchesFilter = currentFilter === '' ||
-                                  option.dataset.name.includes(currentFilter) ||
-                                  option.dataset.effectText.includes(currentFilter);
+            // Apply filtering (visibility handled by handleFilterChange)
+            option.classList.toggle('hidden-option', !matchesFilter(option, currentFilter));
 
-            option.classList.toggle('hidden-option', !matchesFilter);
 
             if (currentOptgroup) {
                  currentOptgroup.appendChild(option);
@@ -217,12 +222,34 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
          // Hide optgroups with no visible options
-         const optgroups = selectElement.querySelectorAll('optgroup');
-         optgroups.forEach(optgroup => {
-             const visibleOptions = optgroup.querySelectorAll('option:not(.hidden-option)');
-             optgroup.style.display = visibleOptions.length > 0 ? '' : 'none';
-         });
+         updateOptgroupVisibility(selectElement);
     }
+
+    // Helper to check if an option matches the filter
+    function matchesFilter(option, filterValue) {
+        if (filterValue === '') return true;
+        const name = option.dataset.name || '';
+        const effectText = option.dataset.effectText || '';
+        return name.includes(filterValue) || effectText.includes(filterValue);
+    }
+
+    // Helper to update visibility of options within a select based on filter
+    function updateOptionVisibility(selectElement, filterValue) {
+        const options = selectElement.querySelectorAll('option:not([value=""])'); // Exclude default option
+        options.forEach(option => {
+            option.classList.toggle('hidden-option', !matchesFilter(option, filterValue));
+        });
+    }
+
+    // Helper to update visibility of optgroups
+    function updateOptgroupVisibility(selectElement) {
+        const optgroups = selectElement.querySelectorAll('optgroup');
+        optgroups.forEach(optgroup => {
+            const visibleOptions = optgroup.querySelectorAll('option:not(.hidden-option)');
+            optgroup.style.display = visibleOptions.length > 0 ? '' : 'none';
+        });
+    }
+
 
      // --- Event Handlers ---
     function handleSelectChange(event) {
@@ -245,26 +272,14 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSlotCalculations(slotElement);
     }
 
+    // Refactored to reduce nesting (Sonar S2004)
     function handleFilterChange() {
         const filterValue = filterInput.value.toLowerCase();
         document.querySelectorAll('.equipment-slot').forEach(slotElement => {
             const selects = slotElement.querySelectorAll('select.main-modifier-select, select.secondary-modifier-select');
             selects.forEach(select => {
-                const optgroups = select.querySelectorAll('optgroup');
-                optgroups.forEach(optgroup => {
-                    let groupHasVisibleOptions = false;
-                    const groupOptions = optgroup.querySelectorAll('option');
-                    groupOptions.forEach(option => {
-                        const name = option.dataset.name || '';
-                        const effectText = option.dataset.effectText || '';
-                        const matches = filterValue === '' || name.includes(filterValue) || effectText.includes(filterValue);
-                        option.classList.toggle('hidden-option', !matches);
-                        if (matches) {
-                            groupHasVisibleOptions = true;
-                        }
-                    });
-                    optgroup.style.display = groupHasVisibleOptions ? '' : 'none';
-                });
+                updateOptionVisibility(select, filterValue); // Update individual option visibility
+                updateOptgroupVisibility(select); // Update optgroup visibility based on contained options
             });
         });
     }
@@ -333,8 +348,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Update secondary slot counts based on selected main modifier
         const defaultSlotDef = SLOTS.find(s => s.id === slotElement.dataset.slotId);
-        const positiveCount = mainModifier?.secondaryPositiveCount ?? defaultSlotDef.secondaryPositiveCount;
-        const negativeCount = mainModifier?.secondaryNegativeCount ?? defaultSlotDef.secondaryNegativeCount;
+        // Use optional chaining for safer access (Sonar S6582)
+        const positiveCount = mainModifier?.secondaryPositiveCount ?? defaultSlotDef?.secondaryPositiveCount ?? 0; // Fallback to 0 if defaultSlotDef is somehow missing
+        const negativeCount = mainModifier?.secondaryNegativeCount ?? defaultSlotDef?.secondaryNegativeCount ?? 0;
         updateSecondarySlots(slotElement, positiveCount, negativeCount); // Recreate secondary slots
 
         // Now select secondary modifiers and update their display
@@ -346,7 +362,7 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedModifiers.push(modifier); // Add secondary mod (or null)
 
             const effectDisplay = select.previousElementSibling;
-             if (effectDisplay && effectDisplay.classList.contains('modifier-effect-display')) {
+             if (effectDisplay?.classList.contains('modifier-effect-display')) { // Optional chaining
                  effectDisplay.innerHTML = modifier ? getModifierEffectText(modifier, itemTier, itemLevel) : ' ';
              }
 
@@ -379,7 +395,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
          // Update Main Modifier display and styling (needs to be done after secondary slots are potentially recreated)
          const mainEffectDisplay = mainSelect.previousElementSibling;
-         if (mainEffectDisplay && mainEffectDisplay.classList.contains('modifier-effect-display')) {
+         // Use optional chaining (Sonar S6582)
+         if (mainEffectDisplay?.classList.contains('modifier-effect-display')) {
              mainEffectDisplay.innerHTML = mainModifier ? getModifierEffectText(mainModifier, itemTier, itemLevel) : ' ';
          }
          mainSelect.className = mainSelect.className.replace(/selected-rarity-\w+/g, '').trim();
@@ -425,6 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateAllActiveStates() {
         document.querySelectorAll('.equipment-slot').forEach(slotElement => {
              const reqLevelValueSpan = slotElement.querySelector('.req-level-value');
+             // Use optional chaining
              const requiredLevel = reqLevelValueSpan ? parseInt(reqLevelValueSpan.textContent, 10) : 0;
              updateSlotActiveState(slotElement, requiredLevel);
         });
