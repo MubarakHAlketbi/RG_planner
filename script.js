@@ -1,3 +1,12 @@
+/*
+ * Rogue Genesia Equipment Planner Script
+ *
+ * Changes:
+ * - Added variant selection UI and logic for applicable modifiers (Issue #4).
+ * - Passing selected variant ID to calculation/display functions.
+ * - Added placeholder logic for populating variant options (needs specific implementation).
+ * - Updated handleClearAll to reset variant selectors.
+ */
 document.addEventListener('DOMContentLoaded', () => {
     const plannerContainer = document.getElementById('planner-container');
     const filterInput = document.getElementById('modifier-filter');
@@ -81,6 +90,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Main Modifier
         slotDiv.appendChild(createModifierGroup(slot, 'main'));
 
+        // Variant Selection Placeholder (will be populated dynamically)
+        const variantContainer = document.createElement('div');
+        variantContainer.classList.add('variant-selection-container');
+        variantContainer.style.display = 'none'; // Hide initially
+        slotDiv.appendChild(variantContainer);
+
         // Secondary Positive Modifiers Container
         const positiveContainer = document.createElement('div');
         positiveContainer.classList.add('modifier-group', 'secondary-modifiers-container', 'positive-secondary-container');
@@ -96,9 +111,6 @@ document.addEventListener('DOMContentLoaded', () => {
         negativeLabel.textContent = `Secondary Negative`; // Count will be added dynamically
         negativeContainer.appendChild(negativeLabel);
         slotDiv.appendChild(negativeContainer);
-
-        // REMOVED initial call to updateSecondarySlots here.
-        // It will be called correctly within the first updateSlotCalculations.
 
         return slotDiv;
     }
@@ -152,13 +164,13 @@ document.addEventListener('DOMContentLoaded', () => {
         MODIFIERS.forEach(modifier => {
             let isAllowed = false;
             if (type === 'main') {
-                // Main mods must be 'main' type AND allowed in this specific slot
-                isAllowed = modifier.type === 'main' && modifier.allowedSlots.includes(slot.id);
+                // Main mods must be 'main' or 'CustomMain' type AND allowed in this specific slot
+                isAllowed = (modifier.type === 'main' || modifier.modifierType === 'CustomMain') && modifier.allowedSlots.includes(slot.id);
             } else { // secondary
-                // Secondary mods must be 'secondary' type AND match positivity
+                // Secondary mods must be 'secondary' or 'CustomSecondary' type AND match positivity
                 // Filtering by allowedSlots for secondaries happens dynamically based on main mod.
                 // Here, we just check type and positivity.
-                isAllowed = modifier.type === 'secondary' && modifier.positivity === positivity;
+                isAllowed = (modifier.type === 'secondary' || modifier.modifierType === 'CustomSecondary') && modifier.positivity === positivity;
             }
             if (isAllowed) {
                 addedModifiers.push(modifier);
@@ -173,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (rarityA !== rarityB) {
                 return rarityA - rarityB; // Sort by rarity index
             }
-            return a.name.localeCompare(b.name); // Secondary sort by name
+            return (a.displayName || a.name).localeCompare(b.displayName || b.name); // Secondary sort by display name
         });
 
         // Clear existing options except the default
@@ -199,10 +211,11 @@ document.addEventListener('DOMContentLoaded', () => {
             option.value = modifier.id;
 
             // Use default tier/level for display text in the dropdown list
-            const baseDisplayText = getModifierEffectText(modifier, DEFAULT_TIER, DEFAULT_LEVEL);
+            // Pass null for variant initially for the list display
+            const baseDisplayText = getModifierEffectText(modifier, DEFAULT_TIER, DEFAULT_LEVEL, null);
             const uniqueIndicator = modifier.rarity === 'Unique' ? '⭐ ' : '';
             // Ensure baseDisplayText is a string before using includes
-            const textContent = uniqueIndicator + (baseDisplayText || modifier.name || ''); // Fallback display
+            const textContent = uniqueIndicator + (baseDisplayText || modifier.displayName || ''); // Fallback display using displayName
             option.textContent = textContent;
 
 
@@ -210,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
             option.classList.add('modifier-option', `rarity-${modifier.rarity.toLowerCase()}`);
             option.dataset.rarity = modifier.rarity;
             option.dataset.positivity = modifier.positivity;
-            option.dataset.name = modifier.name.toLowerCase();
+            option.dataset.name = (modifier.displayName || modifier.name).toLowerCase(); // Use displayName for filter check
             // Store effect text in lowercase for filtering
             option.dataset.effectText = (baseDisplayText || '').toLowerCase();
 
@@ -287,7 +300,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleFilterChange() {
         const filterValue = filterInput.value.toLowerCase();
         document.querySelectorAll('.equipment-slot').forEach(slotElement => {
-            const selects = slotElement.querySelectorAll('select.main-modifier-select, select.secondary-modifier-select');
+            // Include variant selects in the filter update
+            const selects = slotElement.querySelectorAll('select.main-modifier-select, select.secondary-modifier-select, select.variant-modifier-select');
             selects.forEach(select => {
                 updateOptionVisibility(select, filterValue); // Update individual option visibility
                 updateOptgroupVisibility(select); // Update optgroup visibility based on contained options
@@ -297,14 +311,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
      function handleClearAll() {
-        const allSelects = document.querySelectorAll('select.main-modifier-select, select.secondary-modifier-select');
+        const allSelects = document.querySelectorAll('select.main-modifier-select, select.secondary-modifier-select, select.variant-modifier-select'); // Include variant selects
         const allTiers = document.querySelectorAll('select.item-tier-select');
         const allLevels = document.querySelectorAll('input.item-level-input');
 
         allSelects.forEach(select => {
             select.value = ''; // Reset selection
-            // Trigger change manually AFTER resetting value
-            // select.dispatchEvent(new Event('change')); // Dispatching change here can cause issues if updateSlotCalculations relies on previous state
         });
         allTiers.forEach(select => select.value = DEFAULT_TIER);
         allLevels.forEach(input => input.value = DEFAULT_LEVEL);
@@ -353,8 +365,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const select = group.querySelector('select');
             if (select && preservedValues.positive[i]) {
                 select.value = preservedValues.positive[i];
-                // Manually trigger update for the restored effect display if needed,
-                // but updateSlotCalculations will handle it later anyway.
             }
         }
 
@@ -371,18 +381,114 @@ document.addEventListener('DOMContentLoaded', () => {
          handleFilterChange(); // Re-apply filter to newly added selects
     }
 
+    // --- Variant Selection Logic (Issue #4) ---
 
+    // Gets possible variants based on modifier ID
+    // TODO: This needs actual implementation based on C# GetVariantsList logic
+    function getPossibleVariants(modifierId) {
+        const modifier = getModifierById(modifierId);
+        if (!modifier || !modifier.hasVariants) {
+            return [];
+        }
+
+        // Placeholder logic - Replace with actual implementation
+        console.log(`Fetching variants for ${modifierId}`);
+        if (modifierId === 'M_KnightPendant') {
+            // Simulate fetching Knight weapons (replace with actual filtering of MODIFIERS or a dedicated weapon list)
+            return [
+                { id: 'Weapon_Sword', name: 'Sword' },
+                { id: 'Weapon_Axe', name: 'Axe' },
+                { id: 'Weapon_Bow', name: 'Bow' }
+            ];
+        } else if (modifierId === 'EM_WeaponFinaleDamage') {
+            // Simulate fetching all applicable weapons
+             return MODIFIERS
+                .filter(m => m.type === 'main' && m.statName && m.statName !== 'None' && !m.isCustom) // Example filter
+                .map(m => ({ id: m.id, name: m.displayName || m.name }))
+                .sort((a, b) => a.name.localeCompare(b.name));
+        }
+        // Add logic for other variant modifiers here...
+
+        return []; // Default empty list if no specific logic found
+    }
+
+
+    // Populates the variant dropdown
+    function populateVariantOptions(variantSelect, modifierId) {
+        const variants = getPossibleVariants(modifierId);
+
+        // Clear existing options except the default
+        while (variantSelect.options.length > 1) {
+            variantSelect.remove(1);
+        }
+
+        variants.forEach(variant => {
+            const option = document.createElement('option');
+            option.value = variant.id; // Use variant ID (e.g., weapon ID)
+            option.textContent = variant.name; // Display variant name
+            variantSelect.appendChild(option);
+        });
+    }
+
+    // Creates, updates, or removes the variant selector UI
+    function updateVariantSelector(slotElement, mainModifier) {
+        const variantContainer = slotElement.querySelector('.variant-selection-container');
+        if (!variantContainer) return; // Should not happen
+
+        // If main modifier has variants, show and populate the selector
+        if (mainModifier?.hasVariants) {
+            variantContainer.innerHTML = ''; // Clear previous content
+            variantContainer.style.display = 'block';
+
+            const groupDiv = document.createElement('div');
+            groupDiv.classList.add('variant-selection-group'); // Add specific class
+
+            const label = document.createElement('label');
+            label.setAttribute('for', `${slotElement.dataset.slotId}-variant`);
+            label.textContent = 'Select Variant:';
+            groupDiv.appendChild(label);
+
+            const select = document.createElement('select');
+            select.id = `${slotElement.dataset.slotId}-variant`;
+            select.classList.add('variant-modifier-select'); // Add specific class
+
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = '--- Select Variant ---';
+            select.appendChild(defaultOption);
+
+            populateVariantOptions(select, mainModifier.id);
+            select.addEventListener('change', handleSelectChange); // Trigger recalculation on change
+
+            groupDiv.appendChild(select);
+            variantContainer.appendChild(groupDiv);
+
+        } else {
+            // If main modifier has no variants, hide the container
+            variantContainer.innerHTML = ''; // Clear content
+            variantContainer.style.display = 'none';
+        }
+    }
+
+    // --- Main Update Function ---
     function updateSlotCalculations(slotElement) {
         const tierSelect = slotElement.querySelector('.item-tier-select');
         const levelInput = slotElement.querySelector('.item-level-input');
-        const itemTier = parseInt(tierSelect?.value, 10) || DEFAULT_TIER; // Optional chaining
-        const itemLevel = parseInt(levelInput?.value, 10) || DEFAULT_LEVEL; // Optional chaining
+        const itemTier = parseInt(tierSelect?.value, 10) || DEFAULT_TIER;
+        const itemLevel = parseInt(levelInput?.value, 10) || DEFAULT_LEVEL;
 
         const selectedModifiers = [];
         const mainSelect = slotElement.querySelector('select.main-modifier-select');
-        const mainModifierId = mainSelect?.value; // Optional chaining
+        const mainModifierId = mainSelect?.value;
         const mainModifier = mainModifierId ? getModifierById(mainModifierId) : null;
         selectedModifiers.push(mainModifier); // Add main mod (or null)
+
+        // Update variant selector UI based on main modifier (Issue #4)
+        updateVariantSelector(slotElement, mainModifier);
+
+        // Read selected variant *after* selector is potentially updated (Issue #4)
+        const variantSelect = slotElement.querySelector('select.variant-modifier-select');
+        const selectedVariantId = variantSelect?.value || null;
 
         // Update secondary slot counts based on selected main modifier OR slot defaults
         const defaultSlotDef = SLOTS.find(s => s.id === slotElement.dataset.slotId);
@@ -393,11 +499,12 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSecondarySlots(slotElement, positiveCount, negativeCount);
 
         // --- Update Main Modifier Display ---
-         const mainEffectDisplay = mainSelect?.previousElementSibling; // Optional chaining
+         const mainEffectDisplay = mainSelect?.previousElementSibling;
          if (mainEffectDisplay?.classList.contains('modifier-effect-display')) {
-             mainEffectDisplay.innerHTML = mainModifier ? getModifierEffectText(mainModifier, itemTier, itemLevel) : ' ';
+             // Pass selected variant ID to the display function (Issue #4)
+             mainEffectDisplay.innerHTML = mainModifier ? getModifierEffectText(mainModifier, itemTier, itemLevel, selectedVariantId) : ' ';
          }
-         if (mainSelect) { // Check if mainSelect exists
+         if (mainSelect) {
              mainSelect.className = mainSelect.className.replace(/selected-rarity-\w+/g, '').trim();
              mainSelect.style.borderColor = '';
              mainSelect.title = '';
@@ -409,7 +516,8 @@ document.addEventListener('DOMContentLoaded', () => {
                  }
                  let titleText = `Rarity: ${rarity}`;
                  if(mainModifier.description) {
-                      titleText += `\nEffect Desc: ${modifier.description || 'N/A'}`; // Add modifier description
+                      // Use optional chaining on modifier if it might be null inside description access
+                      titleText += `\nEffect Desc: ${mainModifier.description || 'N/A'}`;
                  }
                  mainSelect.title = titleText;
              }
@@ -420,13 +528,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const secondarySelects = slotElement.querySelectorAll('select.secondary-modifier-select');
         secondarySelects.forEach(select => {
             const selectedOption = select.options[select.selectedIndex];
-            const modifierId = selectedOption?.value; // Optional chaining
+            const modifierId = selectedOption?.value;
             const modifier = modifierId ? getModifierById(modifierId) : null;
             selectedModifiers.push(modifier); // Add secondary mod (or null)
 
             const effectDisplay = select.previousElementSibling;
-             if (effectDisplay?.classList.contains('modifier-effect-display')) { // Optional chaining
-                 effectDisplay.innerHTML = modifier ? getModifierEffectText(modifier, itemTier, itemLevel) : ' ';
+             if (effectDisplay?.classList.contains('modifier-effect-display')) {
+                 // Secondary mods typically don't have variants, pass null
+                 effectDisplay.innerHTML = modifier ? getModifierEffectText(modifier, itemTier, itemLevel, null) : ' ';
              }
 
             // Update select styling based on selected modifier
@@ -450,7 +559,7 @@ document.addEventListener('DOMContentLoaded', () => {
                      titleText += ` | Type: ${positivity.charAt(0).toUpperCase() + positivity.slice(1)}`;
                  }
                  if(modifier.description) {
-                      titleText += `\nEffect Desc: ${modifier.description || 'N/A'}`; // Add modifier description
+                      titleText += `\nEffect Desc: ${modifier.description || 'N/A'}`;
                  }
                  select.title = titleText;
             }
@@ -483,7 +592,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateAllActiveStates() {
         document.querySelectorAll('.equipment-slot').forEach(slotElement => {
              const reqLevelValueSpan = slotElement.querySelector('.req-level-value');
-             // Use optional chaining
              const requiredLevel = reqLevelValueSpan ? parseInt(reqLevelValueSpan.textContent, 10) : 0;
              updateSlotActiveState(slotElement, requiredLevel);
         });

@@ -65,6 +65,11 @@ header h1 {
     max-width: 800px;
     margin: 10px auto;
 }
+.disclaimer em { /* Style the added note */
+    color: #ccc;
+    font-style: italic;
+}
+
 
 .controls {
     margin-top: 20px;
@@ -188,7 +193,8 @@ header h1 {
     margin-bottom: 5px; /* Reduced margin */
 }
 
-.modifier-group label {
+.modifier-group label,
+.variant-selection-group label { /* Include variant label */
     display: block;
     font-weight: bold;
     margin-bottom: 5px;
@@ -205,7 +211,8 @@ header h1 {
 
 
 .modifier-group select,
-.modifier-group .selected-modifier {
+.modifier-group .selected-modifier,
+.variant-selection-group select { /* Include variant select */
     width: 100%;
     padding: 8px 10px;
     background-color: var(--input-bg); /* Consistent input background */
@@ -217,7 +224,8 @@ header h1 {
     transition: border-color 0.3s ease; /* Smooth border transition */
 }
 
-.modifier-group select:focus {
+.modifier-group select:focus,
+.variant-selection-group select:focus { /* Include variant select */
     outline: none;
     border-color: var(--accent-color);
 }
@@ -238,6 +246,27 @@ header h1 {
     content: "";
     margin-top: 0.3em;
 }
+
+/* Variant Selection Styling */
+.variant-selection-container {
+    margin-top: 10px; /* Space above variant selector */
+    padding-top: 10px;
+    border-top: 1px dashed var(--border-color); /* Separator */
+}
+
+.variant-selection-group {
+    margin-bottom: 10px;
+}
+
+.variant-selection-group label {
+    color: var(--accent-color); /* Make variant label stand out */
+    font-size: 0.9em;
+}
+
+.variant-modifier-select {
+    border-color: var(--secondary-color); /* Different border for variant select */
+}
+
 
 /* Style options based on rarity */
 .modifier-option.rarity-common { color: var(--rarity-common); }

@@ -9,9 +9,10 @@
 <body>
     <div id="app">
         <header>
-            <h1>Rogue Genesia Equipment Planner (v0.4.1)</h1>
+            <h1>Rogue Genesia Equipment Planner (v0.4.2)</h1>
             <p class="disclaimer">
                 Data updated based on JSON export from decompiled code. Modifier availability per slot derived from item->slot relationships. Required Soul Level calculated based on modifier costs.
+                <br><em>Note: Some unique item effects depend on in-game conditions (like stage number or equipped weapons) and may show only their base potential here.</em> <!-- Added note for Issue #3 -->
             </p>
              <div class="controls">
                 <label for="player-soul-level">Your Soul Level:</label>
@@ -24,11 +25,10 @@
 
         <main id="planner-container">
             <!-- Slots will be generated here by JavaScript -->
-            <!-- Example structure removed as requested by SonarLint -->
         </main>
 
         <footer>
-            <p>Planner created based on provided C# source code and JSON data export. Required Soul Level calculation subtracts cost for negative modifiers.</p>
+            <p>Planner created based on provided C# source code and JSON data export. Required Soul Level calculation subtracts cost for negative modifiers. Calculations updated to better match in-game formulas.</p>
         </footer>
     </div>
 
